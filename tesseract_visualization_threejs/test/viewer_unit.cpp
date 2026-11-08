@@ -412,7 +412,7 @@ TEST(Gltf, TrajectoryAnimation)
   const std::vector<JointId> joints{ JointId("cylinder_joint"), JointId("box_joint") };
   JointState a(joints, Eigen::Vector2d(0.0, 0.5));
   a.time = 0.0;
-  JointState b(joints, Eigen::Vector2d(M_PI_2, 1.0));
+  JointState b(joints, Eigen::Vector2d(EIGEN_PI / 2.0, 1.0));
   b.time = 2.0;
   trajectory.states = { a, b };
 
@@ -587,7 +587,7 @@ TEST(Markers, AxisUsesWxyzAndScale)
 {
   Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
   pose.translate(Eigen::Vector3d(1, 2, 3));
-  pose.rotate(Eigen::AngleAxisd(M_PI, Eigen::Vector3d::UnitZ()));
+  pose.rotate(Eigen::AngleAxisd(EIGEN_PI, Eigen::Vector3d::UnitZ()));
   vis::AxisMarker marker(pose);
   marker.setScale(Eigen::Vector3d::Constant(0.25));
   marker.setParentLink("tool0");

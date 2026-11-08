@@ -161,7 +161,7 @@ std::vector<ViewerMarker> allMarkers(const std::string& root)
   add(arrow, "arrow");
 
   Eigen::Isometry3d rotated = translation(3, 0, 0);
-  rotated.rotate(Eigen::AngleAxisd(M_PI_2, Eigen::Vector3d::UnitZ()));
+  rotated.rotate(Eigen::AngleAxisd(EIGEN_PI / 2.0, Eigen::Vector3d::UnitZ()));
   add(vis::GeometryMarker(std::make_shared<geom::Box>(1, 2, 3), rotated), "box");
   add(vis::GeometryMarker(std::make_shared<geom::Sphere>(0.25), translation(0, 3, 0)), "sphere");
   add(vis::GeometryMarker(std::make_shared<geom::Cylinder>(0.1, 0.4), translation(0, 1, 0)), "cylinder");

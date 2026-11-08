@@ -10,6 +10,8 @@ if(NOT DEFINED BUILD_SHARED_LIBS)
 endif()
 if(WIN32)
   set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
+  add_compile_definitions(NOMINMAX _WIN32_WINNT=0x0A00)
+  add_compile_options($<$<CXX_COMPILER_ID:MSVC>:/bigobj>)
 endif()
 
 option(TESSERACT_VISUALIZATION_THREEJS_BUILD_SERVER "Build the Boost.Beast server and the Visualization plugin" ON)
@@ -54,7 +56,7 @@ if(TESSERACT_VISUALIZATION_THREEJS_BUILD_SERVER)
   # Layer 3: HTTP and websocket server
   add_library(tesseract_visualization_threejs_server src/viewer_server.cpp)
   target_compile_options(tesseract_visualization_threejs_server PRIVATE $<$<CXX_COMPILER_ID:GNU,Clang>:-Wall -Wextra>)
-  target_link_libraries(tesseract_visualization_threejs_server PUBLIC tesseract_visualization_threejs PRIVATE Boost::boost Threads::Threads)
+  target_link_libraries(tesseract_visualization_threejs_server PUBLIC tesseract_visualization_threejs PRIVATE Boost::headers Threads::Threads)
 
   # tesseract::visualization::Visualization plugin
   add_library(tesseract_visualization_threejs_plugin SHARED src/threejs_visualization_plugin.cpp)
@@ -76,13 +78,17 @@ install(DIRECTORY include/ DESTINATION include FILES_MATCHING PATTERN "*.h")
 if(TESSERACT_VISUALIZATION_THREEJS_ENABLE_TESTING)
   enable_testing()
   find_package(GTest REQUIRED)
+
+  # tesseract installs its support data, which the tests load as package://tesseract/support
+  get_filename_component(TESSERACT_SHARE_DIR "${tesseract_DIR}/../../../share" ABSOLUTE)
   add_executable(tesseract_visualization_threejs_unit test/viewer_unit.cpp)
   target_link_libraries(tesseract_visualization_threejs_unit PRIVATE tesseract_visualization_threejs JsonCpp::JsonCpp OpenSSL::Crypto GTest::gtest_main)
   add_test(NAME tesseract_visualization_threejs_unit COMMAND tesseract_visualization_threejs_unit)
+  set_tests_properties(tesseract_visualization_threejs_unit PROPERTIES ENVIRONMENT "TESSERACT_RESOURCE_PATH=${TESSERACT_SHARE_DIR}")
 
   if(TESSERACT_VISUALIZATION_THREEJS_BUILD_SERVER)
     add_executable(tesseract_visualization_threejs_server_unit test/server_unit.cpp)
-    target_link_libraries(tesseract_visualization_threejs_server_unit PRIVATE tesseract_visualization_threejs_server JsonCpp::JsonCpp Boost::boost
+    target_link_libraries(tesseract_visualization_threejs_server_unit PRIVATE tesseract_visualization_threejs_server JsonCpp::JsonCpp Boost::headers
                                                                Threads::Threads GTest::gtest_main)
     add_test(NAME tesseract_visualization_threejs_server_unit COMMAND tesseract_visualization_threejs_server_unit)
 

@@ -3,6 +3,7 @@
 #include <boost/beast/http.hpp>
 #include <boost/beast/websocket.hpp>
 
+#include <chrono>
 #include <condition_variable>
 #include <deque>
 #include <memory>
@@ -308,7 +309,10 @@ public:
 
     acceptor_ = std::make_unique<tcp::acceptor>(ioc_);
     acceptor_->open(endpoint.protocol());
+#ifndef _WIN32
+    // On Windows this option would let a second server bind a port that is already in use
     acceptor_->set_option(net::socket_base::reuse_address(true));
+#endif
     acceptor_->bind(endpoint);
     acceptor_->listen(net::socket_base::max_listen_connections);
     bound_port_ = acceptor_->local_endpoint().port();

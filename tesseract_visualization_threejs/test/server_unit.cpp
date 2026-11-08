@@ -268,7 +268,11 @@ TEST(Plugin, LoadsAndServes)
 {
   // Nothing else in this process uses the plugin's server, so a fixed port is safe within the test
   const unsigned short plugin_port = 18765;
+#ifdef _WIN32
+  _putenv_s("TESSERACT_VISUALIZATION_THREEJS_PORT", std::to_string(plugin_port).c_str());
+#else
   setenv("TESSERACT_VISUALIZATION_THREEJS_PORT", std::to_string(plugin_port).c_str(), 1);
+#endif
 
   tesseract::visualization::VisualizationLoader loader;
   auto named = loader.get("TesseractThreejsVisualizationPlugin");

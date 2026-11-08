@@ -9,11 +9,15 @@
  */
 #include <boost_plugin_loader/macros.h>
 
+#include <chrono>
 #include <cstdlib>
 #include <iostream>
+#include <iterator>
 #include <limits>
+#include <memory>
 #include <mutex>
-#include <thread>
+#include <string>
+#include <vector>
 
 #include <tesseract/common/joint_state.h>
 #include <tesseract/common/logging.h>

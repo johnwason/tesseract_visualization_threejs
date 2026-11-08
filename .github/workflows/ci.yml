@@ -1,0 +1,186 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  VCPKG_COMMON_PKGS: >-
+    boost-beast boost-dll boost-filesystem boost-program-options boost-stacktrace
+    cereal tinyxml2 spdlog assimp urdfdom octomap orocos-kdl pcl gtest jsoncpp
+    openssl yaml-cpp eigen3 fcl bullet3[multithreading,double-precision,rtti]
+    ccd[double-precision]
+  TEST_CMAKE_ARGS: -DTESSERACT_VISUALIZATION_THREEJS_ENABLE_TESTING=ON
+
+jobs:
+  linux:
+    name: Ubuntu 24.04 ${{ matrix.config.arch }}
+    runs-on: ${{ matrix.config.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+          - runner: ubuntu-24.04
+            arch: x64
+          - runner: ubuntu-24.04-arm
+            arch: arm64
+    container:
+      image: ubuntu:noble
+      env:
+        DEBIAN_FRONTEND: noninteractive
+        TZ: Etc/UTC
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: target_ws/src
+
+      - name: Install dependencies
+        run: |
+          apt-get update
+          apt-get upgrade -y
+          apt-get install -y liboctomap-dev
+
+      - name: Build and test
+        uses: tesseract-robotics/colcon-action@v16
+        with:
+          ccache-prefix: ci-linux-${{ matrix.config.arch }}
+          vcs-file: dependencies.repos
+          rosdep-install-args: -iry --skip-keys cereal
+          upstream-args: --cmake-args -DCMAKE_BUILD_TYPE=Release
+          target-path: target_ws/src
+          target-args: --cmake-args -DCMAKE_BUILD_TYPE=Release ${{ env.TEST_CMAKE_ARGS }}
+
+      - name: Browser tests
+        if: matrix.config.arch == 'x64'
+        shell: bash
+        run: |
+          apt-get install -y nodejs npm
+          mkdir -p /tmp/playwright
+          cd /tmp/playwright
+          npm init -y > /dev/null
+          npm install --no-audit --no-fund @playwright/test@1.49.1
+          npx playwright install --with-deps chromium
+          package_xml=$(find "$GITHUB_WORKSPACE" -path '*/share/tesseract/package.xml' | head -1)
+          export NODE_PATH=/tmp/playwright/node_modules
+          export TESSERACT_RESOURCE_PATH=$(dirname "$(dirname "$package_xml")")
+          export VIEWER_BROWSER_OUTPUT=$GITHUB_WORKSPACE/browser_output
+          export VIEWER_BROWSER_FIXTURE=$(find "$GITHUB_WORKSPACE" -type f -name tesseract_visualization_threejs_browser_fixture | head -1)
+          npx playwright test --config "$GITHUB_WORKSPACE/target_ws/src/tesseract_visualization_threejs/test/browser/playwright.config.js"
+
+      - name: Upload browser screenshots
+        if: always() && matrix.config.arch == 'x64'
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-output
+          path: browser_output/**/*.png
+          if-no-files-found: ignore
+          retention-days: 7
+
+  macos:
+    name: macOS ${{ matrix.config.arch }}
+    runs-on: ${{ matrix.config.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+          - runner: macos-15-intel
+            arch: x64
+            triplet: x64-osx-dynamic-release
+            homebrew_root: /usr/local
+          - runner: macos-15
+            arch: arm64
+            triplet: arm64-osx-dynamic-release
+            homebrew_root: /opt/homebrew
+    env:
+      CMAKE_COMMON: >-
+        -G Ninja -DVCPKG_TARGET_TRIPLET=${{ matrix.config.triplet }} -DCMAKE_BUILD_TYPE=Release
+        -DVCPKG_APPLOCAL_DEPS=OFF -DCMAKE_OSX_DEPLOYMENT_TARGET=12.0
+        -DOpenMP_CXX_INCLUDE_DIR=${{ matrix.config.homebrew_root }}/opt/libomp/include
+        -DOpenMP_C_INCLUDE_DIR=${{ matrix.config.homebrew_root }}/opt/libomp/include
+        -DOpenMP_CXX_LIB_NAMES=libomp -DOpenMP_CXX_FLAGS=-fopenmp
+        -DOpenMP_C_LIB_NAMES=libomp -DOpenMP_C_FLAGS=-fopenmp
+        -DOpenMP_libomp_LIBRARY=${{ matrix.config.homebrew_root }}/opt/libomp/lib/libomp.dylib
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: target_ws/src
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install build tools
+        run: brew install libomp cmake automake autoconf autoconf-archive libtool gcc ninja
+
+      - name: Build vcpkg packages
+        uses: johnwason/vcpkg-action@v8
+        with:
+          pkgs: ${{ env.VCPKG_COMMON_PKGS }} benchmark flann openblas ompl taskflow gperftools
+          triplet: ${{ matrix.config.triplet }}
+          extra-args: --clean-after-build --overlay-triplets=${{ github.workspace }}/target_ws/src/.github/workflows/vcpkg_triplets
+          token: ${{ github.token }}
+          cache-key: ci-macos-${{ matrix.config.arch }}
+
+      - name: Update environment
+        shell: bash
+        run: |
+          echo "DYLD_LIBRARY_PATH=$DYLD_LIBRARY_PATH:$GITHUB_WORKSPACE/vcpkg/installed/${{ matrix.config.triplet }}/lib" >> "$GITHUB_ENV"
+          echo "CMAKE_PREFIX_PATH=$CMAKE_PREFIX_PATH:$GITHUB_WORKSPACE/vcpkg/installed/${{ matrix.config.triplet }}" >> "$GITHUB_ENV"
+
+      - name: Build and test
+        uses: tesseract-robotics/colcon-action@v16
+        with:
+          ccache-prefix: ci-macos-${{ matrix.config.arch }}
+          vcs-file: dependencies.repos
+          rosdep-enabled: false
+          upstream-args: --merge-install --cmake-args ${{ env.CMAKE_COMMON }}
+          target-path: target_ws/src
+          target-args: --merge-install --cmake-args ${{ env.CMAKE_COMMON }} ${{ env.TEST_CMAKE_ARGS }}
+          run-tests-args: --merge-install
+
+  windows:
+    name: Windows x64
+    runs-on: windows-2022
+    env:
+      TRIPLET: x64-windows-v143-release
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: target_ws/src
+
+      - name: Build vcpkg packages
+        uses: johnwason/vcpkg-action@v8
+        with:
+          pkgs: ${{ env.VCPKG_COMMON_PKGS }} benchmark lapack-reference boost-graph
+          triplet: ${{ env.TRIPLET }}
+          extra-args: --clean-after-build --overlay-triplets=${{ github.workspace }}/target_ws/src/.github/workflows/vcpkg_triplets
+          token: ${{ github.token }}
+          cache-key: ci-windows
+
+      - name: Configure MSVC
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+          toolset: "14.4"
+
+      - name: Update environment
+        shell: bash
+        run: |
+          echo "PATH=${{ env.PATH }};$GITHUB_WORKSPACE\vcpkg\installed\${{ env.TRIPLET }}\bin" >> "$GITHUB_ENV"
+          echo "CMAKE_PREFIX_PATH=$GITHUB_WORKSPACE\vcpkg\installed\${{ env.TRIPLET }}" >> "$GITHUB_ENV"
+
+      - name: Build and test
+        uses: tesseract-robotics/colcon-action@v16
+        with:
+          ccache-prefix: ci-windows
+          vcs-file: dependencies.repos
+          upstream-args: --cmake-args -G "Ninja" -DVCPKG_TARGET_TRIPLET=${{ env.TRIPLET }} -DCMAKE_BUILD_TYPE=Release
+          target-path: target_ws/src
+          target-args: --cmake-args -G "Ninja" -DVCPKG_TARGET_TRIPLET=${{ env.TRIPLET }} -DCMAKE_BUILD_TYPE=Release ${{ env.TEST_CMAKE_ARGS }}

@@ -4,13 +4,18 @@
 #include <openssl/evp.h>
 
 #include <algorithm>
+#include <array>
 #include <cctype>
 #include <cstdint>
 #include <cstring>
 #include <limits>
 #include <map>
+#include <memory>
 #include <stdexcept>
+#include <string>
+#include <type_traits>
 #include <unordered_map>
+#include <vector>
 
 #include <tesseract/common/joint_state.h>
 #include <tesseract/common/logging.h>

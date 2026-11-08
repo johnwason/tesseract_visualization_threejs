@@ -1,5 +1,8 @@
 #include <algorithm>
+#include <array>
 #include <cmath>
+#include <string>
+#include <vector>
 
 #include <tesseract/collision/types.h>
 #include <tesseract/common/logging.h>
@@ -77,7 +80,7 @@ void appendGeometry(std::vector<ViewerMarker>& out,
   ViewerMarker m;
 
   // three.js builds cylinders and cones along +Y and tesseract along +Z. +90 degrees about X maps Y onto Z.
-  const Eigen::Isometry3d y_to_z = marker.origin * Eigen::AngleAxisd(M_PI_2, Eigen::Vector3d::UnitX());
+  const Eigen::Isometry3d y_to_z = marker.origin * Eigen::AngleAxisd(EIGEN_PI / 2.0, Eigen::Vector3d::UnitX());
   Eigen::Isometry3d pose = marker.origin;
 
   if (const auto* box = dynamic_cast<const g::Box*>(geometry))

@@ -7,6 +7,8 @@
 #ifndef TESSERACT_VISUALIZATION_THREEJS_VIEWER_STATE_H
 #define TESSERACT_VISUALIZATION_THREEJS_VIEWER_STATE_H
 
+#include <array>
+#include <cstddef>
 #include <functional>
 #include <memory>
 #include <mutex>

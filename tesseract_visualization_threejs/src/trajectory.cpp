@@ -1,7 +1,11 @@
 // Port of util.py
 
 #include <algorithm>
+#include <iterator>
 #include <stdexcept>
+#include <string>
+#include <utility>
+#include <vector>
 
 #include <tesseract/common/joint_state.h>
 #include <tesseract/environment/environment.h>

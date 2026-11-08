@@ -6,6 +6,7 @@
 #define TESSERACT_VISUALIZATION_THREEJS_VIEWER_SERVER_H
 
 #include <chrono>
+#include <cstddef>
 #include <memory>
 #include <string>
 
