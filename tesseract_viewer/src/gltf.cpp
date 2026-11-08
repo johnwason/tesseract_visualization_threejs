@@ -1,8 +1,5 @@
-// Port of tesseract_env_to_gltf.py. Node, accessor and buffer order deliberately follow the Python
-// code, quirks included, so that the output keeps the structure the unchanged client was built on:
-//  - primitive meshes use the non-standard attribute name "NORMALS"
-//  - triangle mesh normals are written to the buffer but not referenced by the primitive
-//  - JPEG textures use the mime type "image/jpg"
+// Port of tesseract_env_to_gltf.py. Node, accessor and buffer order follow the Python code. As there,
+// triangle mesh normals are written to the buffer but not referenced by the primitive.
 
 #include <openssl/evp.h>
 
@@ -264,6 +261,10 @@ private:
     static_assert(std::is_same_v<T, float> || std::is_same_v<T, std::uint32_t>);
     static constexpr std::array<const char*, 4> TYPES = { "SCALAR", "VEC2", "VEC3", "VEC4" };
 
+    // glTF requires accessors to be aligned to their component size. Image bytes can leave them unaligned.
+    while (buffer_.size() % sizeof(T) != 0)
+      buffer_.push_back(0);
+
     Json::Value accessor;
     accessor["bufferView"] = appendBufferView(values.data(), values.size() * sizeof(T));
     accessor["componentType"] = std::is_same_v<T, float> ? COMPONENT_TYPE_FLOAT32 : COMPONENT_TYPE_UINT32;
@@ -478,7 +479,10 @@ private:
         const std::vector<std::uint8_t> image_bytes = image_resource->getResourceContents();
 
         Json::Value image;
-        image["mimeType"] = endsWith(image_resource->getUrl(), "png") ? "image/png" : "image/jpg";
+        // From the data rather than the URL: embedded textures have no file extension
+        const bool is_png = image_bytes.size() >= 4 && image_bytes[0] == 0x89 && image_bytes[1] == 'P' &&
+                            image_bytes[2] == 'N' && image_bytes[3] == 'G';
+        image["mimeType"] = is_png ? "image/png" : "image/jpeg";
         image["bufferView"] = appendBufferView(image_bytes.data(), image_bytes.size());
         const Json::ArrayIndex image_index = appendTo("images", std::move(image));
 
@@ -517,7 +521,7 @@ private:
 
     Json::Value primitive;
     primitive["attributes"]["POSITION"] = it->second.positions;
-    primitive["attributes"]["NORMALS"] = it->second.normals;
+    primitive["attributes"]["NORMAL"] = it->second.normals;
     primitive["indices"] = it->second.indices;
 
     Json::Value mesh;

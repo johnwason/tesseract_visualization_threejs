@@ -126,8 +126,8 @@ class TesseractViewer {
             }
         }
         if (do_update) {
-            self._update_trajectory_timer = setTimeout(() => _this.updateTrajectory(), 1000);
-            self._update_markers_timer = setTimeout(() => _this.updateMarkers(), 1000);
+            this._update_trajectory_timer = setTimeout(() => _this.updateTrajectory(), 1000);
+            this._update_markers_timer = setTimeout(() => _this.updateMarkers(), 1000);
         }
 
     }
@@ -219,7 +219,7 @@ class TesseractViewer {
         }
         catch (_a) {
             let _this = this;
-            self._update_scene_timer = setTimeout(() => _this.updateScene(), 5000);
+            this._update_scene_timer = setTimeout(() => _this.updateScene(), 5000);
             return;
         }
         let etag = fetch_res.headers.get('etag');
@@ -228,12 +228,12 @@ class TesseractViewer {
                 if (this._scene_etag != etag) {
                     this._scene_etag = null;
                     let _this = this;
-                    self._update_scene_timer = setTimeout(() => _this.updateScene(), 0);
+                    this._update_scene_timer = setTimeout(() => _this.updateScene(), 0);
                     return;
                 }
                 else {
                     let _this = this;
-                    self._update_scene_timer = setTimeout(() => _this.updateScene(), 5000);
+                    this._update_scene_timer = setTimeout(() => _this.updateScene(), 5000);
                     return;
                 }
             }
@@ -631,7 +631,7 @@ class TesseractViewer {
         this.addMarkerNode(cylinder, marker);
     }
 
-    addConesMarker(marker) {
+    addConeMarker(marker) {
 
         let cone = new THREE.Mesh(new THREE.ConeGeometry(marker.radius, marker.length), this.getMarkerMaterial(marker));
         this.addMarkerNode(cone, marker);

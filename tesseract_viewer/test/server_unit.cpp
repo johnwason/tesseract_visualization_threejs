@@ -108,7 +108,7 @@ protected:
 };
 }  // namespace
 
-TEST_F(ServerTest, ServesTheUnchangedClient)
+TEST_F(ServerTest, ServesTheClient)
 {
   for (const char* target : { "/", "/index.html" })
   {

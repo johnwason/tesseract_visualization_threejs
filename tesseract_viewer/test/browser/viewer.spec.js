@@ -1,4 +1,4 @@
-// Runs the unchanged JavaScript client in Chromium against the C++ server and checks what three.js
+// Runs the JavaScript client in Chromium against the C++ server and checks what three.js
 // actually built. Expected poses come from tesseract's state solver, via the C++ fixture.
 const { test, expect } = require('@playwright/test');
 const { spawn } = require('child_process');
@@ -115,7 +115,7 @@ function sceneSnapshot(page) {
       };
     };
 
-    const out = { links: {}, joints: {}, markers: {}, meshes: 0, triangles: 0, textures: [], colors: {} };
+    const out = { links: {}, joints: {}, markers: {}, meshes: 0, triangles: 0, textures: [], colors: {}, shading: {} };
     viewer._root_env.traverse(object => {
       const data = object.userData || {};
       if (data.tesseract_link) out.links[data.tesseract_link.name] = describe(object);
@@ -135,6 +135,7 @@ function sceneSnapshot(page) {
           out.textures.push({ name: object.name, width: image.width, height: image.height });
         }
         out.colors[object.name] = object.material.color.toArray();
+        out.shading[object.name] = { normals: !!object.geometry.attributes.normal, flat: object.material.flatShading };
       }
     });
     return out;
@@ -247,6 +248,10 @@ test('primitive shapes have the URDF dimensions and colors', async ({ page }) =>
   const color = name => scene.colors[Object.keys(scene.colors).find(k => k.includes(name))];
   expect(color('cylinder_link')[0]).toBeCloseTo(0.8, 5);
   expect(color('box_link')[1]).toBeCloseTo(0.8, 5);
+
+  // three.js must receive the primitives' normals rather than deriving flat shading
+  const shading = scene.shading[Object.keys(scene.shading).find(k => k.includes('sphere_link'))];
+  expect(shading).toEqual({ normals: true, flat: false });
   await shot(page, 'shapes');
   expectNoProblems(problems);
 });
@@ -272,10 +277,10 @@ test('every tesseract marker type reaches the scene correctly', async ({ page })
   await expectAllLinkPoses(page, env.poses);
 
   const { names } = await fixture.send('markers');
-  expect(names).not.toContain('cone');
+  expect(names).toContain('cone');
   expect(names).toContain('capsule');
 
-  // The marker after the capsule and the dropped cone proves that the list was not cut short
+  // The marker after the capsule and the cone proves that the list was not cut short
   await expect.poll(async () => Object.keys((await sceneSnapshot(page)).markers)).toEqual(expect.arrayContaining(['after_unsupported', 'contact']));
   const { markers } = await sceneSnapshot(page);
 
@@ -293,6 +298,10 @@ test('every tesseract marker type reaches the scene correctly', async ({ page })
 
   // Must stand along tesseract's Z, not the Y axis three.js builds cylinders along
   expectSize(markers.cylinder, [0.2, 0.2, 0.4], 'cylinder marker', 1);
+
+  // Like cylinders, cones must stand along tesseract's Z
+  expectSize(markers.cone, [0.2, 0.2, 0.4], 'cone marker', 1);
+  expect(markers.cone.position[0]).toBeCloseTo(5, 5);
 
   // The arrow goes from z = 1 to z = 2
   expect(markers.arrow.boxMin[2]).toBeCloseTo(1, 2);

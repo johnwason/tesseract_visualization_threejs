@@ -1,6 +1,6 @@
 # tesseract_viewer: port notes
 
-The C++ replacement for the scene conversion, viewer state and server in `tesseract_viewer_python`. The JavaScript client in `tesseract_viewer/resources/static` is byte-for-byte the Python viewer's copy (`tesseract_python` commit `cca2472`).
+The C++ replacement for the scene conversion, viewer state and server in `tesseract_viewer_python`. The JavaScript client in `tesseract_viewer/resources/static` comes from the Python viewer (`tesseract_python` commit `cca2472`), with the two fixes listed below.
 
 ## Layout
 
@@ -26,11 +26,12 @@ export TESSERACT_VIEWER_HOST=127.0.0.1 TESSERACT_VIEWER_PORT=8000
 
 The symbol is `TesseractViewerVisualizationPlugin`. The class is also exported under the Ignition symbol, so existing `VisualizationLoader::get()` callers get the viewer without code changes. For wheels, link the plugin through `ViewerVisualizationAnchor` in `viewer_visualization_anchor.h`.
 
-## Quirks kept for the unchanged client
+## Changes to the client
 
-- Primitive meshes use the non-standard attribute `NORMALS`.
-- Triangle mesh normals are written to the buffer but not referenced.
-- JPEG textures use the mime type `image/jpg`.
+- `addConesMarker` is renamed `addConeMarker`, the name `setMarkers` calls. Before this, a cone threw and dropped every marker after it.
+- The scene, trajectory and marker timers in `createScene` and `updateScene` are stored on `this`. They were stored on `self`, the window, so they could not be cleared.
+
+Triangle mesh normals are still written to the buffer but not referenced, as in the Python viewer, which has that reference commented out.
 
 ## Deliberate differences from the Python viewer
 
@@ -44,6 +45,9 @@ The symbol is `TesseractViewerVisualizationPlugin`. The class is also exported u
 | cv2 decoded each texture and discarded the result | No image library |
 | `plot_trajectory` sent the markers twice | Sent once |
 | Key order and float formatting from Python's `json` | jsoncpp's; equivalent once parsed |
+| Primitive meshes used the invalid attribute `NORMALS`, so three.js ignored their normals | `NORMAL`. The normals in `geometries.json` are per-face, so primitives still look faceted |
+| JPEG textures were labelled `image/jpg`, and the type came from the URL, so embedded PNGs were labelled as JPEG | `image/jpeg` or `image/png`, from the image data |
+| Accessors could be unaligned after image data in the buffer | Padded to a four-byte boundary |
 
 TLS is not implemented, so the WebXR example's HTTPS mode has no C++ equivalent yet.
 
@@ -58,18 +62,17 @@ TLS is not implemented, so the WebXR example's HTTPS mode has no C++ equivalent 
 | `GeometryMarker` capsule | `capsule` | Sent, but the current client only logs that capsules are not implemented |
 | `ToolpathMarker` | `lines` and `axes` | |
 | `ContactResultsMarker` | `arrow` | Colors and directions follow the Ignition visualization |
-| `GeometryMarker` cone | none | The client calls `addConeMarker` but defines `addConesMarker`, so a cone throws and drops every marker after it |
+| `GeometryMarker` cone | `cone` | Rotated like a cylinder |
 | `GeometryMarker` mesh and others; `LINE_*`, `POINTS`, `TEXT`, `TRIANGLE_*`, `USER_DEFINED` | none | Logged; the client has no equivalent, and tesseract has no classes for the enum-only types |
 
 ## Upstream issues found
 
 - `TESSERACT_ADD_VISUALIZATION_PLUGIN` expands to `TESSERACT_ADD_PLUGIN_SECTIONED`, which is not defined at tesseract `2b79e91c`. The plugin calls `EXPORT_CLASS_SECTIONED` directly.
 - `ArrowMarker`'s class comment puts the base at the pose, but its two-point constructor puts the middle there.
-- The client's `addConeMarker` typo described above.
 
 ## Verification
 
-Python reference outputs were not generated, because the aim is to remove Python. Parity rests on a line-by-line port, the gtest suites, and the browser suite, which runs the unchanged client in Chromium and compares the resulting three.js scene with tesseract's own forward kinematics. Screenshots are written to `build/browser`.
+Python reference outputs were not generated, because the aim is to remove Python. Parity rests on a line-by-line port, the gtest suites, and the browser suite, which runs the client in Chromium and compares the resulting three.js scene with tesseract's own forward kinematics. Screenshots are written to `build/browser`.
 
 ## Not done
 

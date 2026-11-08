@@ -76,7 +76,7 @@ void appendGeometry(std::vector<ViewerMarker>& out,
   const g::Geometry* geometry = marker.geom.get();
   ViewerMarker m;
 
-  // three.js builds cylinders along +Y and tesseract along +Z. +90 degrees about X maps Y onto Z.
+  // three.js builds cylinders and cones along +Y and tesseract along +Z. +90 degrees about X maps Y onto Z.
   const Eigen::Isometry3d y_to_z = marker.origin * Eigen::AngleAxisd(M_PI_2, Eigen::Vector3d::UnitX());
   Eigen::Isometry3d pose = marker.origin;
 
@@ -102,6 +102,13 @@ void appendGeometry(std::vector<ViewerMarker>& out,
     m = baseMarker("capsule", parent, tags);
     m.radius = capsule->getRadius();
     m.length = capsule->getLength();
+    pose = y_to_z;
+  }
+  else if (const auto* cone = dynamic_cast<const g::Cone*>(geometry))
+  {
+    m = baseMarker("cone", parent, tags);
+    m.radius = cone->getRadius();
+    m.length = cone->getLength();
     pose = y_to_z;
   }
   else

@@ -176,6 +176,8 @@ void checkAccessors(const Glb& glb)
   {
     const Json::Value& accessor = glb.json["accessors"][i];
     const std::size_t components = COMPONENTS.at(accessor["type"].asString());
+    // Both component types in use are four bytes, and glTF requires alignment to the component size
+    EXPECT_EQ(glb.json["bufferViews"][accessor["bufferView"].asInt()]["byteOffset"].asUInt64() % 4, 0u);
     ASSERT_EQ(accessor["min"].size(), components);
     ASSERT_EQ(accessor["max"].size(), components);
 
@@ -285,8 +287,8 @@ TEST(Gltf, PrimitiveScaleMaterialAndSharedAccessors)
 
   const Json::Value& box1 = gltf["meshes"][(*visual("box_link"))["mesh"].asInt()];
   const Json::Value& box2 = gltf["meshes"][(*visual("box2_link"))["mesh"].asInt()];
-  EXPECT_TRUE(box1["primitives"][0]["attributes"].isMember("NORMALS"));
-  EXPECT_FALSE(box1["primitives"][0]["attributes"].isMember("NORMAL"));
+  EXPECT_TRUE(box1["primitives"][0]["attributes"].isMember("NORMAL"));
+  EXPECT_FALSE(box1["primitives"][0]["attributes"].isMember("NORMALS"));
   EXPECT_EQ(box1["primitives"][0]["attributes"], box2["primitives"][0]["attributes"]);
   EXPECT_EQ(box1["primitives"][0]["indices"], box2["primitives"][0]["indices"]);
   // 3 shapes with 3 accessors each
@@ -366,6 +368,7 @@ TEST(Gltf, EmbeddedTextures)
     const bool png = glb.bin[offset] == 0x89 && glb.bin[offset + 1] == 'P';
     const bool jpeg = glb.bin[offset] == 0xFF && glb.bin[offset + 1] == 0xD8;
     EXPECT_TRUE(png || jpeg);
+    EXPECT_EQ(image["mimeType"].asString(), png ? "image/png" : "image/jpeg");
   }
 
   bool has_textured_primitive = false;
@@ -647,10 +650,16 @@ TEST(Markers, BoxAndSphereKeepOrigin)
   EXPECT_EQ(sphere[0].marker_type, "sphere");
 }
 
-TEST(Markers, ConeIsNeverEmitted)
+TEST(Markers, ConeIsRotatedOntoTheClientsYAxis)
 {
-  // A "cone" would throw in the client and discard the remaining markers
-  EXPECT_TRUE(convertMarker(vis::GeometryMarker(std::make_shared<tesseract::geometry::Cone>(0.1, 0.2)), "b").empty());
+  const auto out = convertMarker(vis::GeometryMarker(std::make_shared<tesseract::geometry::Cone>(0.1, 0.2)), "b");
+  ASSERT_EQ(out.size(), 1u);
+  EXPECT_EQ(out[0].marker_type, "cone");
+  EXPECT_DOUBLE_EQ(*out[0].radius, 0.1);
+  EXPECT_DOUBLE_EQ(*out[0].length, 0.2);
+
+  const Eigen::Quaterniond q(out[0].quaternion[0], out[0].quaternion[1], out[0].quaternion[2], out[0].quaternion[3]);
+  EXPECT_TRUE((q * Eigen::Vector3d::UnitY()).isApprox(Eigen::Vector3d::UnitZ(), 1e-9));
 }
 
 TEST(Markers, ToolpathLinesAndAxes)

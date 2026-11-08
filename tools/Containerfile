@@ -28,7 +28,7 @@ RUN rosdep install --rosdistro jazzy -iry --skip-keys cereal --from-paths \
 RUN apt-get install -y -qq libboost-all-dev libjsoncpp-dev libgtest-dev libgmock-dev \
  && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Browser tests of the unchanged JavaScript client: Node and Playwright with Chromium. Installed
+# Browser tests of the JavaScript client: Node and Playwright with Chromium. Installed
 # under /opt/playwright so that nothing is written into the bind-mounted source tree.
 RUN apt-get update -qq && apt-get install -y -qq nodejs npm \
  && mkdir -p /opt/playwright && cd /opt/playwright && npm init -y >/dev/null \

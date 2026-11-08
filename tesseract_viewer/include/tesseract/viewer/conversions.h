@@ -2,8 +2,7 @@
  * @file conversions.h
  * @brief Layer 1: pure conversions from tesseract types to the viewer's wire formats. No networking.
  *
- * Ported from tesseract_viewer_python. The JavaScript client is unchanged, so the output must keep
- * its structure: see docs in the repository for where the port deliberately differs.
+ * Ported from tesseract_viewer_python. PORTING_NOTES.md lists where the port deliberately differs.
  */
 #ifndef TESSERACT_VIEWER_CONVERSIONS_H
 #define TESSERACT_VIEWER_CONVERSIONS_H
@@ -81,9 +80,8 @@ tesseract::common::VectorIsometry3d trajectoryToFrames(const tesseract::environm
 
 /**
  * @brief One entry of the client's markers document
- * @details marker_type is one of "axes", "arrow", "box", "sphere", "cylinder", "capsule" or "lines".
- * The optional members are written only when set. Never use "cone": the client has a typo in its
- * dispatch (addConeMarker), so a cone throws and discards every marker after it.
+ * @details marker_type is one of "axes", "arrow", "box", "sphere", "cylinder", "cone", "capsule" or
+ * "lines". The optional members are written only when set.
  */
 struct ViewerMarker
 {
@@ -112,7 +110,7 @@ std::string markersToJson(const std::vector<ViewerMarker>& markers);
 
 /**
  * @brief Map a tesseract marker onto the client's marker types
- * @details Supported: AXIS, ARROW, GEOMETRY (box, sphere, cylinder, capsule), TOOLPATH and
+ * @details Supported: AXIS, ARROW, GEOMETRY (box, sphere, cylinder, cone, capsule), TOOLPATH and
  * CONTACT_RESULTS. One tesseract marker can produce several client markers. Anything else logs a
  * warning and returns nothing, because the client cannot show it.
  * @param marker The tesseract marker

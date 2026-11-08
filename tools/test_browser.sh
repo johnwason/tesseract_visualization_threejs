@@ -1,5 +1,5 @@
 #!/bin/bash
-# Run the Playwright tests of the unchanged client against the C++ server, in the container.
+# Run the Playwright tests of the client against the C++ server, in the container.
 # Screenshots are written to build/browser. Pass extra Playwright arguments, such as -g <name>.
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)

@@ -166,9 +166,9 @@ std::vector<ViewerMarker> allMarkers(const std::string& root)
   add(vis::GeometryMarker(std::make_shared<geom::Sphere>(0.25), translation(0, 3, 0)), "sphere");
   add(vis::GeometryMarker(std::make_shared<geom::Cylinder>(0.1, 0.4), translation(0, 1, 0)), "cylinder");
 
-  // The client ignores capsules and must keep going. A cone would stop it, so none may be emitted.
+  // The client ignores capsules and must keep going
   add(vis::GeometryMarker(std::make_shared<geom::Capsule>(0.1, 0.4), translation(0, 4, 0)), "capsule");
-  add(vis::GeometryMarker(std::make_shared<geom::Cone>(0.1, 0.4), translation(0, 5, 0)), "cone");
+  add(vis::GeometryMarker(std::make_shared<geom::Cone>(0.1, 0.4), translation(5, 0, 0)), "cone");
   add(vis::GeometryMarker(std::make_shared<geom::Sphere>(0.1), translation(0, 6, 0)), "after_unsupported");
 
   tesseract::common::VectorIsometry3d segment{ translation(0, 0, 1), translation(1, 0, 1), translation(1, 1, 1) };

@@ -14,7 +14,7 @@
 ```bash
 tools/build_image.sh    # once: bakes every apt and rosdep package into tesseract-viewer-dev:noble
 tools/build.sh          # colcon build and ctest; JOBS and MEM limit it
-tools/test_browser.sh   # Playwright: the unchanged client in Chromium; screenshots in build/browser
+tools/test_browser.sh   # Playwright: the client in Chromium; screenshots in build/browser
 tools/test_sanitizers.sh # the C++ tests under ASan, UBSan and TSan
 tools/run.sh bash       # a shell in the image
 
