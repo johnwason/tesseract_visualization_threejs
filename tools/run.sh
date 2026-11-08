@@ -8,4 +8,4 @@ TTY=(); [ -t 0 ] && TTY=(-it) || true
 exec podman run --rm "${TTY[@]}" ${PODMAN_ARGS:-} --network host --memory="${MEM:-12g}" \
   -v "$ROOT:/ws" -w /ws \
   -e TESSERACT_RESOURCE_PATH=/ws/src \
-  tesseract-viewer-dev:noble "$@"
+  tesseract-visualization-threejs-dev:noble "$@"

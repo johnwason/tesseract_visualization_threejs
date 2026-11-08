@@ -8,7 +8,7 @@ const path = require('path');
 const readline = require('readline');
 
 const OUT = process.env.VIEWER_BROWSER_OUTPUT || '/ws/build/browser';
-const FIXTURE = process.env.VIEWER_BROWSER_FIXTURE || '/ws/build/colcon/tesseract_viewer/tesseract_viewer_browser_fixture';
+const FIXTURE = process.env.VIEWER_BROWSER_FIXTURE || '/ws/build/colcon/tesseract_visualization_threejs/tesseract_visualization_threejs_browser_fixture';
 const CDN_CACHE = `${OUT}/cdn`;
 
 class Fixture {

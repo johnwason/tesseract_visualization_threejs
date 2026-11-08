@@ -1,16 +1,16 @@
-# tesseract_viewer: port notes
+# tesseract_visualization_threejs: port notes
 
-The C++ replacement for the scene conversion, viewer state and server in `tesseract_viewer_python`. The JavaScript client in `tesseract_viewer/resources/static` comes from the Python viewer (`tesseract_python` commit `cca2472`), with the two fixes listed below.
+The C++ replacement for the scene conversion, viewer state and server in `tesseract_viewer_python`. The JavaScript client in `tesseract_visualization_threejs/resources/static` comes from the Python viewer (`tesseract_python` commit `cca2472`), with the two fixes listed below.
 
 ## Layout
 
 | Path | Contents |
 | --- | --- |
-| `tesseract_viewer/include/tesseract/viewer/conversions.h` | Layer 1: environment to glTF/GLB, trajectories, marker conversion |
-| `tesseract_viewer/include/tesseract/viewer/viewer_state.h` | Layer 2: documents, ETags and websocket messages, no transport |
-| `tesseract_viewer/include/tesseract/viewer/viewer_server.h` | Layer 3: Boost.Beast HTTP and websocket server |
-| `tesseract_viewer/src/viewer_visualization_plugin.cpp` | The `Visualization` plugin |
-| `tesseract_viewer/test/` | gtest suites, and the Playwright suite in `test/browser` |
+| `tesseract_visualization_threejs/include/tesseract/visualization/threejs/conversions.h` | Layer 1: environment to glTF/GLB, trajectories, marker conversion |
+| `tesseract_visualization_threejs/include/tesseract/visualization/threejs/viewer_state.h` | Layer 2: documents, ETags and websocket messages, no transport |
+| `tesseract_visualization_threejs/include/tesseract/visualization/threejs/viewer_server.h` | Layer 3: Boost.Beast HTTP and websocket server |
+| `tesseract_visualization_threejs/src/threejs_visualization_plugin.cpp` | The `Visualization` plugin |
+| `tesseract_visualization_threejs/test/` | gtest suites, and the Playwright suite in `test/browser` |
 | `tools/` | Container image and build scripts; see `tools/README.md` |
 
 Dependencies: tesseract, jsoncpp, OpenSSL (SHA-256 and base64), and Boost.Beast for layer 3. A packaged build needs `boost-beast` and `openssl` added to `VCPKG_PKGS`.
@@ -19,12 +19,12 @@ Dependencies: tesseract, jsoncpp, OpenSSL (SHA-256 and base64), and Boost.Beast 
 
 ```bash
 export TESSERACT_VISUALIZATION_PLUGIN_DIRECTORIES=<prefix>/lib
-export TESSERACT_VISUALIZATION_PLUGINS=tesseract_viewer_visualization_plugin
+export TESSERACT_VISUALIZATION_PLUGINS=tesseract_visualization_threejs_plugin
 # Optional. Defaults are 127.0.0.1 and 8000
-export TESSERACT_VIEWER_HOST=127.0.0.1 TESSERACT_VIEWER_PORT=8000
+export TESSERACT_VISUALIZATION_THREEJS_HOST=127.0.0.1 TESSERACT_VISUALIZATION_THREEJS_PORT=8000
 ```
 
-The symbol is `TesseractViewerVisualizationPlugin`. The class is also exported under the Ignition symbol, so existing `VisualizationLoader::get()` callers get the viewer without code changes. For wheels, link the plugin through `ViewerVisualizationAnchor` in `viewer_visualization_anchor.h`.
+The symbol is `TesseractThreejsVisualizationPlugin`. The class is also exported under the Ignition symbol, so existing `VisualizationLoader::get()` callers get the viewer without code changes. For wheels, link the plugin through `ThreejsVisualizationAnchor` in `threejs_visualization_anchor.h`.
 
 ## Changes to the client
 

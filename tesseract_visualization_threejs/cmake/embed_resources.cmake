@@ -1,6 +1,6 @@
 # Run with: cmake -DOUTPUT=out.cpp -DINPUTS=sym=path,sym=path -P embed_resources.cmake
 # Writes each input file as a byte array, so the library needs no installed data files.
-set(content "#include <cstddef>\nnamespace tesseract::viewer::detail\n{\n")
+set(content "#include <cstddef>\nnamespace tesseract::visualization::threejs::detail\n{\n")
 string(REPLACE "," ";" entries "${INPUTS}")
 foreach(entry IN LISTS entries)
   string(REPLACE "=" ";" parts "${entry}")
@@ -13,5 +13,5 @@ foreach(entry IN LISTS entries)
   string(APPEND content "extern const unsigned char ${symbol}[] = { ${bytes} };\n")
   string(APPEND content "extern const std::size_t ${symbol}_size = ${size};\n")
 endforeach()
-string(APPEND content "}  // namespace tesseract::viewer::detail\n")
+string(APPEND content "}  // namespace tesseract::visualization::threejs::detail\n")
 file(WRITE "${OUTPUT}" "${content}")

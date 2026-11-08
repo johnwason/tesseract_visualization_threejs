@@ -12,13 +12,13 @@
 | `src/tesseract_planning` | `a6483823` | reference only, not built |
 
 ```bash
-tools/build_image.sh    # once: bakes every apt and rosdep package into tesseract-viewer-dev:noble
+tools/build_image.sh    # once: bakes every apt and rosdep package into tesseract-visualization-threejs-dev:noble
 tools/build.sh          # colcon build and ctest; JOBS and MEM limit it
 tools/test_browser.sh   # Playwright: the client in Chromium; screenshots in build/browser
 tools/test_sanitizers.sh # the C++ tests under ASan, UBSan and TSan
 tools/run.sh bash       # a shell in the image
 
 # Serve a robot on http://localhost:8000
-tools/run.sh bash -c 'LD_LIBRARY_PATH=/ws/build/install/lib /ws/build/install/bin/tesseract_viewer_demo \
+tools/run.sh bash -c 'LD_LIBRARY_PATH=/ws/build/install/lib /ws/build/install/bin/tesseract_visualization_threejs_demo \
   /ws/src/tesseract/support/urdf/abb_irb2400.urdf /ws/src/tesseract/support/urdf/abb_irb2400.srdf'
 ```

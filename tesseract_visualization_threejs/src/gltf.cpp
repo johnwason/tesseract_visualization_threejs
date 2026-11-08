@@ -20,12 +20,12 @@
 #include <tesseract/geometry/impl/mesh_material.h>
 #include <tesseract/scene_graph/joint.h>
 #include <tesseract/scene_graph/link.h>
-#include <tesseract/viewer/conversions.h>
+#include <tesseract/visualization/threejs/conversions.h>
 
 #include "embedded_resources.h"
 #include "json_util.h"
 
-namespace tesseract::viewer
+namespace tesseract::visualization::threejs
 {
 namespace
 {
@@ -385,7 +385,7 @@ private:
     {
       // The Python viewer raised UnboundLocalError here. A single unsupported visual should not
       // take down plotting of the rest of the environment.
-      TESSERACT_LOG_WARN("tesseract_viewer: skipping visual '{}': unsupported geometry type", visual_name);
+      TESSERACT_LOG_WARN("tesseract_visualization_threejs: skipping visual '{}': unsupported geometry type", visual_name);
       return;
     }
 
@@ -610,4 +610,4 @@ std::vector<std::uint8_t> environmentToGlb(const tesseract::environment::Environ
   return out;
 }
 
-}  // namespace tesseract::viewer
+}  // namespace tesseract::visualization::threejs

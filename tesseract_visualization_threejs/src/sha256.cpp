@@ -2,9 +2,9 @@
 
 #include <array>
 
-#include <tesseract/viewer/conversions.h>
+#include <tesseract/visualization/threejs/conversions.h>
 
-namespace tesseract::viewer
+namespace tesseract::visualization::threejs
 {
 std::string hashBytes(std::string_view data)
 {
@@ -22,4 +22,4 @@ std::string hashBytes(std::string_view data)
   return hex;
 }
 
-}  // namespace tesseract::viewer
+}  // namespace tesseract::visualization::threejs

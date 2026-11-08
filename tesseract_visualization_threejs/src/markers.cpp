@@ -5,7 +5,7 @@
 #include <tesseract/common/logging.h>
 #include <tesseract/geometry/geometries.h>
 #include <tesseract/scene_graph/link.h>
-#include <tesseract/viewer/conversions.h>
+#include <tesseract/visualization/threejs/conversions.h>
 #include <tesseract/visualization/markers/arrow_marker.h>
 #include <tesseract/visualization/markers/axis_marker.h>
 #include <tesseract/visualization/markers/contact_results_marker.h>
@@ -15,7 +15,7 @@
 
 #include "json_util.h"
 
-namespace tesseract::viewer
+namespace tesseract::visualization::threejs
 {
 namespace
 {
@@ -113,7 +113,7 @@ void appendGeometry(std::vector<ViewerMarker>& out,
   }
   else
   {
-    TESSERACT_LOG_WARN("tesseract_viewer: geometry marker type {} cannot be shown by the client",
+    TESSERACT_LOG_WARN("tesseract_visualization_threejs: geometry marker type {} cannot be shown by the client",
                        geometry != nullptr ? static_cast<int>(geometry->getType()) : -1);
     return;
   }
@@ -300,10 +300,10 @@ std::vector<ViewerMarker> convertMarker(const vis::Marker& marker,
       appendContactResults(out, dynamic_cast<const vis::ContactResultsMarker&>(marker), parent, tags);
       break;
     default:
-      TESSERACT_LOG_WARN("tesseract_viewer: marker type {} cannot be shown by the client", marker.getType());
+      TESSERACT_LOG_WARN("tesseract_visualization_threejs: marker type {} cannot be shown by the client", marker.getType());
       break;
   }
   return out;
 }
 
-}  // namespace tesseract::viewer
+}  // namespace tesseract::visualization::threejs

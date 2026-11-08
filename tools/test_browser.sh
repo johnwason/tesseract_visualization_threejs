@@ -7,5 +7,5 @@ exec "$ROOT/tools/run.sh" bash -euo pipefail -c '
   export LD_LIBRARY_PATH=/ws/build/install/lib
   mkdir -p build/browser
   cd /opt/playwright
-  npx playwright test --config /ws/tesseract_viewer/test/browser/playwright.config.js "$@"
+  npx playwright test --config /ws/tesseract_visualization_threejs/test/browser/playwright.config.js "$@"
 ' test_browser "$@"

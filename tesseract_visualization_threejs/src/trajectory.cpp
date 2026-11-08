@@ -7,11 +7,11 @@
 #include <tesseract/environment/environment.h>
 #include <tesseract/kinematics/joint_group.h>
 #include <tesseract/scene_graph/scene_state.h>
-#include <tesseract/viewer/conversions.h>
+#include <tesseract/visualization/threejs/conversions.h>
 
 #include "json_util.h"
 
-namespace tesseract::viewer
+namespace tesseract::visualization::threejs
 {
 TrajectoryList jointTrajectoryToList(const tesseract::common::JointTrajectory& trajectory)
 {
@@ -136,4 +136,4 @@ tesseract::common::VectorIsometry3d trajectoryToFrames(const tesseract::environm
   return frames;
 }
 
-}  // namespace tesseract::viewer
+}  // namespace tesseract::visualization::threejs

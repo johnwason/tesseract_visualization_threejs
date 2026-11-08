@@ -1,5 +1,5 @@
-#ifndef TESSERACT_VIEWER_JSON_UTIL_H
-#define TESSERACT_VIEWER_JSON_UTIL_H
+#ifndef TESSERACT_VISUALIZATION_THREEJS_JSON_UTIL_H
+#define TESSERACT_VISUALIZATION_THREEJS_JSON_UTIL_H
 
 #include <array>
 #include <string>
@@ -7,7 +7,7 @@
 
 #include <json/json.h>
 
-namespace tesseract::viewer::detail
+namespace tesseract::visualization::threejs::detail
 {
 inline std::string writeJson(const Json::Value& value)
 {
@@ -25,6 +25,6 @@ Json::Value toJsonArray(const Sequence& values)
     out.append(Json::Value(v));
   return out;
 }
-}  // namespace tesseract::viewer::detail
+}  // namespace tesseract::visualization::threejs::detail
 
-#endif  // TESSERACT_VIEWER_JSON_UTIL_H
+#endif  // TESSERACT_VISUALIZATION_THREEJS_JSON_UTIL_H

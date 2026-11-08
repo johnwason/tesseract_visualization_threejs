@@ -1,11 +1,11 @@
 /**
- * @file viewer_visualization_plugin.cpp
+ * @file threejs_visualization_plugin.cpp
  * @brief tesseract::visualization::Visualization plugin that serves the web viewer
  *
  * Load it by setting
  *   TESSERACT_VISUALIZATION_PLUGIN_DIRECTORIES=<prefix>/lib
- *   TESSERACT_VISUALIZATION_PLUGINS=tesseract_viewer_visualization_plugin
- * The server binds TESSERACT_VIEWER_HOST (default 127.0.0.1) and TESSERACT_VIEWER_PORT (default 8000).
+ *   TESSERACT_VISUALIZATION_PLUGINS=tesseract_visualization_threejs_plugin
+ * The server binds TESSERACT_VISUALIZATION_THREEJS_HOST (default 127.0.0.1) and TESSERACT_VISUALIZATION_THREEJS_PORT (default 8000).
  */
 #include <boost_plugin_loader/macros.h>
 
@@ -19,13 +19,13 @@
 #include <tesseract/common/logging.h>
 #include <tesseract/environment/environment.h>
 #include <tesseract/scene_graph/scene_state.h>
-#include <tesseract/viewer/viewer_server.h>
-#include <tesseract/viewer/viewer_state.h>
-#include <tesseract/viewer/viewer_visualization_anchor.h>
+#include <tesseract/visualization/threejs/viewer_server.h>
+#include <tesseract/visualization/threejs/viewer_state.h>
+#include <tesseract/visualization/threejs/threejs_visualization_anchor.h>
 #include <tesseract/visualization/markers/marker.h>
 #include <tesseract/visualization/visualization.h>
 
-namespace tesseract::viewer
+namespace tesseract::visualization::threejs
 {
 namespace
 {
@@ -47,8 +47,8 @@ public:
       return started_;
     start_attempted_ = true;
 
-    const char* host_env = std::getenv("TESSERACT_VIEWER_HOST");
-    const char* port_env = std::getenv("TESSERACT_VIEWER_PORT");
+    const char* host_env = std::getenv("TESSERACT_VISUALIZATION_THREEJS_HOST");
+    const char* port_env = std::getenv("TESSERACT_VISUALIZATION_THREEJS_PORT");
     const std::string host = host_env != nullptr ? host_env : "127.0.0.1";
     try
     {
@@ -56,12 +56,12 @@ public:
       server_ = std::make_unique<ViewerServer>(state_, host, static_cast<unsigned short>(port));
       server_->start();
       started_ = true;
-      TESSERACT_LOG_INFO("tesseract_viewer: serving on http://{}:{}", host, server_->port());
+      TESSERACT_LOG_INFO("tesseract_visualization_threejs: serving on http://{}:{}", host, server_->port());
     }
     catch (const std::exception& e)
     {
       // Planning should carry on when the viewer is unavailable, for example if the port is taken
-      TESSERACT_LOG_ERROR("tesseract_viewer: could not start the server on {}: {}", host, e.what());
+      TESSERACT_LOG_ERROR("tesseract_visualization_threejs: could not start the server on {}: {}", host, e.what());
       server_.reset();
     }
     return started_;
@@ -99,7 +99,7 @@ std::vector<std::string> tagsForNamespace(const std::string& ns)
 }
 }  // namespace
 
-class ViewerVisualization : public tesseract::visualization::Visualization
+class ThreejsVisualization : public tesseract::visualization::Visualization
 {
 public:
   bool isConnected() const override
@@ -198,19 +198,19 @@ private:
     }
     catch (const std::exception& e)
     {
-      TESSERACT_LOG_ERROR("tesseract_viewer: plotting failed: {}", e.what());
+      TESSERACT_LOG_ERROR("tesseract_visualization_threejs: plotting failed: {}", e.what());
     }
   }
 };
 
-PLUGIN_ANCHOR_IMPL(ViewerVisualizationAnchor)
+PLUGIN_ANCHOR_IMPL(ThreejsVisualizationAnchor)
 
-}  // namespace tesseract::viewer
+}  // namespace tesseract::visualization::threejs
 
 // TESSERACT_ADD_VISUALIZATION_PLUGIN expands to a macro that does not exist at the pinned tesseract
 // commit, so the underlying boost_plugin_loader macro is used directly.
-EXPORT_CLASS_SECTIONED(tesseract::viewer::ViewerVisualization, TesseractViewerVisualizationPlugin, Plotter)
+EXPORT_CLASS_SECTIONED(tesseract::visualization::threejs::ThreejsVisualization, TesseractThreejsVisualizationPlugin, Plotter)
 
 // VisualizationLoader::get() with no name asks for the Ignition symbol. Exporting it too means that
 // existing callers of get(), such as the tesseract_planning examples, get the viewer unchanged.
-EXPORT_CLASS_SECTIONED(tesseract::viewer::ViewerVisualization, TesseractIgnitionVisualizationPlugin, Plotter)
+EXPORT_CLASS_SECTIONED(tesseract::visualization::threejs::ThreejsVisualization, TesseractIgnitionVisualizationPlugin, Plotter)

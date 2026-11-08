@@ -16,14 +16,14 @@
 #include <tesseract/kinematics/joint_group.h>
 #include <tesseract/geometry/geometries.h>
 #include <tesseract/scene_graph/link.h>
-#include <tesseract/viewer/viewer_state.h>
+#include <tesseract/visualization/threejs/viewer_state.h>
 #include <tesseract/visualization/markers/arrow_marker.h>
 #include <tesseract/visualization/markers/axis_marker.h>
 #include <tesseract/visualization/markers/contact_results_marker.h>
 #include <tesseract/visualization/markers/geometry_marker.h>
 #include <tesseract/visualization/markers/toolpath_marker.h>
 
-using namespace tesseract::viewer;
+using namespace tesseract::visualization::threejs;
 using tesseract::common::GeneralResourceLocator;
 using tesseract::common::JointId;
 using tesseract::common::JointState;

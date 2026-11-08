@@ -2,14 +2,14 @@
  * @file viewer_server.h
  * @brief Layer 3: serves a ViewerState and the client over HTTP and websocket with Boost.Beast
  */
-#ifndef TESSERACT_VIEWER_VIEWER_SERVER_H
-#define TESSERACT_VIEWER_VIEWER_SERVER_H
+#ifndef TESSERACT_VISUALIZATION_THREEJS_VIEWER_SERVER_H
+#define TESSERACT_VISUALIZATION_THREEJS_VIEWER_SERVER_H
 
 #include <chrono>
 #include <memory>
 #include <string>
 
-namespace tesseract::viewer
+namespace tesseract::visualization::threejs
 {
 class ViewerState;
 
@@ -45,6 +45,6 @@ private:
   std::unique_ptr<Impl> impl_;
 };
 
-}  // namespace tesseract::viewer
+}  // namespace tesseract::visualization::threejs
 
-#endif  // TESSERACT_VIEWER_VIEWER_SERVER_H
+#endif  // TESSERACT_VISUALIZATION_THREEJS_VIEWER_SERVER_H

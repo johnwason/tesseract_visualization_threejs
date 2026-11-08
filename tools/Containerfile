@@ -1,4 +1,4 @@
-# Development image for tesseract_viewer. Follows tesseract's own Ubuntu recipe
+# Development image for tesseract_visualization_threejs. Follows tesseract's own Ubuntu recipe
 # (src/tesseract/docker/Dockerfile and .github/workflows/ubuntu.yml, distro noble) so that every
 # apt/rosdep package is baked in once and builds never need the apt servers.
 #
@@ -24,7 +24,7 @@ RUN curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key \
 RUN rosdep install --rosdistro jazzy -iry --skip-keys cereal --from-paths \
       /deps/tesseract /deps/ros_industrial_cmake_boilerplate /deps/boost_plugin_loader /deps/opw_kinematics
 
-# tesseract_viewer's own dependencies. Boost.Beast ships in libboost-dev on noble.
+# tesseract_visualization_threejs's own dependencies. Boost.Beast ships in libboost-dev on noble.
 RUN apt-get install -y -qq libboost-all-dev libjsoncpp-dev libgtest-dev libgmock-dev \
  && apt-get clean && rm -rf /var/lib/apt/lists/*
 

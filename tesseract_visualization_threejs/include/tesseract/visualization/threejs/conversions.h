@@ -4,8 +4,8 @@
  *
  * Ported from tesseract_viewer_python. PORTING_NOTES.md lists where the port deliberately differs.
  */
-#ifndef TESSERACT_VIEWER_CONVERSIONS_H
-#define TESSERACT_VIEWER_CONVERSIONS_H
+#ifndef TESSERACT_VISUALIZATION_THREEJS_CONVERSIONS_H
+#define TESSERACT_VISUALIZATION_THREEJS_CONVERSIONS_H
 
 #include <array>
 #include <cstdint>
@@ -22,7 +22,7 @@
 #include <tesseract/scene_graph/fwd.h>
 #include <tesseract/visualization/fwd.h>
 
-namespace tesseract::viewer
+namespace tesseract::visualization::threejs
 {
 /**
  * @brief Convert an environment to a self-contained glTF 2.0 document, with the buffer as a base64 URI
@@ -127,6 +127,6 @@ std::string hashBytes(std::string_view data);
 /** @brief Contents of a compiled-in client file: "index.html" or "app.js". Empty if unknown */
 std::string_view staticFile(std::string_view name);
 
-}  // namespace tesseract::viewer
+}  // namespace tesseract::visualization::threejs
 
-#endif  // TESSERACT_VIEWER_CONVERSIONS_H
+#endif  // TESSERACT_VISUALIZATION_THREEJS_CONVERSIONS_H

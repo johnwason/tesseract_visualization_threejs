@@ -12,10 +12,10 @@
 #include <thread>
 
 #include <tesseract/common/logging.h>
-#include <tesseract/viewer/viewer_server.h>
-#include <tesseract/viewer/viewer_state.h>
+#include <tesseract/visualization/threejs/viewer_server.h>
+#include <tesseract/visualization/threejs/viewer_state.h>
 
-namespace tesseract::viewer
+namespace tesseract::visualization::threejs
 {
 namespace
 {
@@ -96,7 +96,7 @@ public:
   {
     if (queue_.size() >= MAX_QUEUED_MESSAGES)
     {
-      TESSERACT_LOG_WARN("tesseract_viewer: dropping a websocket client that is not reading");
+      TESSERACT_LOG_WARN("tesseract_visualization_threejs: dropping a websocket client that is not reading");
       close();
       return;
     }
@@ -195,7 +195,7 @@ private:
   void respond()
   {
     auto response = std::make_shared<http::response<http::string_body>>(http::status::ok, request_.version());
-    response->set(http::field::server, "tesseract_viewer");
+    response->set(http::field::server, "tesseract_visualization_threejs");
     response->keep_alive(request_.keep_alive());
 
     const bool is_head = request_.method() == http::verb::head;
@@ -379,4 +379,4 @@ bool ViewerServer::waitForConnection(std::chrono::milliseconds timeout) const
   return impl_->hub()->waitForConnection(timeout);
 }
 
-}  // namespace tesseract::viewer
+}  // namespace tesseract::visualization::threejs

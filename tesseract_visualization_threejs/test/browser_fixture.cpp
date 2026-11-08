@@ -1,4 +1,4 @@
-// Test double for tesseract_viewer/test/browser/viewer.spec.js. Runs the real ViewerState and
+// Test double for tesseract_visualization_threejs/test/browser/viewer.spec.js. Runs the real ViewerState and
 // ViewerServer and takes one command per line on stdin, answering with one JSON line on stdout.
 // Link poses are printed from tesseract's own state solver, so the browser tests can compare what
 // three.js built against an independent source.
@@ -15,15 +15,15 @@
 #include <tesseract/environment/environment.h>
 #include <tesseract/geometry/geometries.h>
 #include <tesseract/scene_graph/link.h>
-#include <tesseract/viewer/viewer_server.h>
-#include <tesseract/viewer/viewer_state.h>
+#include <tesseract/visualization/threejs/viewer_server.h>
+#include <tesseract/visualization/threejs/viewer_state.h>
 #include <tesseract/visualization/markers/arrow_marker.h>
 #include <tesseract/visualization/markers/axis_marker.h>
 #include <tesseract/visualization/markers/contact_results_marker.h>
 #include <tesseract/visualization/markers/geometry_marker.h>
 #include <tesseract/visualization/markers/toolpath_marker.h>
 
-using namespace tesseract::viewer;
+using namespace tesseract::visualization::threejs;
 using tesseract::common::GeneralResourceLocator;
 using tesseract::common::JointId;
 using tesseract::common::LinkId;

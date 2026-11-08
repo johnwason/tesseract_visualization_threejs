@@ -4,8 +4,8 @@
  *
  * tesseract_robotraconteur and similar consumers can use this directly and serve it however they like.
  */
-#ifndef TESSERACT_VIEWER_VIEWER_STATE_H
-#define TESSERACT_VIEWER_VIEWER_STATE_H
+#ifndef TESSERACT_VISUALIZATION_THREEJS_VIEWER_STATE_H
+#define TESSERACT_VISUALIZATION_THREEJS_VIEWER_STATE_H
 
 #include <functional>
 #include <memory>
@@ -13,9 +13,9 @@
 #include <string>
 #include <vector>
 
-#include <tesseract/viewer/conversions.h>
+#include <tesseract/visualization/threejs/conversions.h>
 
-namespace tesseract::viewer
+namespace tesseract::visualization::threejs
 {
 /** @brief A served document. body is null until the document has been set; etag is then "None" */
 struct ViewerResource
@@ -152,6 +152,6 @@ private:
   std::size_t marker_count_{ 1 };
 };
 
-}  // namespace tesseract::viewer
+}  // namespace tesseract::visualization::threejs
 
-#endif  // TESSERACT_VIEWER_VIEWER_STATE_H
+#endif  // TESSERACT_VISUALIZATION_THREEJS_VIEWER_STATE_H

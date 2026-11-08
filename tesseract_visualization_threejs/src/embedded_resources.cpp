@@ -1,8 +1,8 @@
 #include "embedded_resources.h"
 
-#include <tesseract/viewer/conversions.h>
+#include <tesseract/visualization/threejs/conversions.h>
 
-namespace tesseract::viewer
+namespace tesseract::visualization::threejs
 {
 std::string_view staticFile(std::string_view name)
 {
@@ -12,4 +12,4 @@ std::string_view staticFile(std::string_view name)
     return detail::asView(detail::app_js, detail::app_js_size);
   return {};
 }
-}  // namespace tesseract::viewer
+}  // namespace tesseract::visualization::threejs

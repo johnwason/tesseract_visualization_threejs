@@ -14,13 +14,13 @@
 #include <tesseract/common/resource_locator.h>
 #include <tesseract/environment/environment.h>
 #include <tesseract/state_solver/state_solver.h>
-#include <tesseract/viewer/viewer_server.h>
-#include <tesseract/viewer/viewer_state.h>
+#include <tesseract/visualization/threejs/viewer_server.h>
+#include <tesseract/visualization/threejs/viewer_state.h>
 #include <tesseract/visualization/markers/axis_marker.h>
 #include <tesseract/visualization/visualization.h>
 #include <tesseract/visualization/visualization_loader.h>
 
-using namespace tesseract::viewer;
+using namespace tesseract::visualization::threejs;
 namespace beast = boost::beast;
 namespace http = beast::http;
 namespace websocket = beast::websocket;
@@ -268,10 +268,10 @@ TEST(Plugin, LoadsAndServes)
 {
   // Nothing else in this process uses the plugin's server, so a fixed port is safe within the test
   const unsigned short plugin_port = 18765;
-  setenv("TESSERACT_VIEWER_PORT", std::to_string(plugin_port).c_str(), 1);
+  setenv("TESSERACT_VISUALIZATION_THREEJS_PORT", std::to_string(plugin_port).c_str(), 1);
 
   tesseract::visualization::VisualizationLoader loader;
-  auto named = loader.get("TesseractViewerVisualizationPlugin");
+  auto named = loader.get("TesseractThreejsVisualizationPlugin");
   ASSERT_NE(named, nullptr);
   // get() without a name asks for the Ignition symbol, which is how existing examples call it
   auto by_default = loader.get();

@@ -3,9 +3,9 @@
 #include <tesseract/common/joint_state.h>
 #include <tesseract/environment/environment.h>
 #include <tesseract/scene_graph/scene_state.h>
-#include <tesseract/viewer/viewer_state.h>
+#include <tesseract/visualization/threejs/viewer_state.h>
 
-namespace tesseract::viewer
+namespace tesseract::visualization::threejs
 {
 namespace
 {
@@ -331,4 +331,4 @@ ViewerResource ViewerState::markersJson() const
   return markers_json_;
 }
 
-}  // namespace tesseract::viewer
+}  // namespace tesseract::visualization::threejs
