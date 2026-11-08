@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>tesseract_viewer</name>
+  <version>0.1.0</version>
+  <description>C++ scene conversion, viewer state and web server for the tesseract three.js viewer</description>
+  <maintainer email="wason@wasontech.com">John Wason</maintainer>
+  <license>Apache 2.0</license>
+
+  <buildtool_depend>cmake</buildtool_depend>
+  <build_depend>ros_industrial_cmake_boilerplate</build_depend>
+  <depend>tesseract</depend>
+  <depend>eigen</depend>
+  <depend>libjsoncpp-dev</depend>
+  <depend>libssl-dev</depend>
+  <depend>boost</depend>
+  <test_depend>gtest</test_depend>
+
+  <export>
+    <build_type>cmake</build_type>
+  </export>
+</package>
