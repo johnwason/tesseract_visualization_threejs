@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <chrono>
 #include <cstdlib>
 #include <iostream>
@@ -21,7 +22,9 @@ namespace
 constexpr int FIRST_DEFAULT_PORT = 8000;
 constexpr int DEFAULT_PORT_ATTEMPTS = 100;
 
-ThreejsVisualizationOptions optionsFromEnvironment()
+}  // namespace
+
+ThreejsVisualizationOptions ThreejsVisualizationOptions::fromEnvironment()
 {
   ThreejsVisualizationOptions options;
   if (const char* host = std::getenv("TESSERACT_VISUALIZATION_THREEJS_HOST"))
@@ -35,6 +38,23 @@ ThreejsVisualizationOptions optionsFromEnvironment()
     options.port = static_cast<unsigned short>(port);
   }
   return options;
+}
+
+namespace
+{
+constexpr double UNTIMED_TRAJECTORY_DURATION = 5.0;
+
+/** @brief The client animates by time, so a path with no timing is spread evenly, as Ignition does */
+tesseract::common::JointTrajectory withUsableTimes(tesseract::common::JointTrajectory trajectory)
+{
+  const auto& states = trajectory.states;
+  const bool untimed = states.size() > 1 && std::all_of(states.begin(), states.end(), [&states](const auto& state) {
+                         return state.time == states.front().time;
+                       });
+  if (untimed)
+    for (std::size_t i = 0; i < trajectory.states.size(); ++i)
+      trajectory.states[i].time = UNTIMED_TRAJECTORY_DURATION * static_cast<double>(i) / static_cast<double>(states.size() - 1);
+  return trajectory;
 }
 
 std::vector<std::string> tagsForNamespace(const std::string& ns)
@@ -69,7 +89,7 @@ bool ThreejsVisualization::ensureStarted() const
 
   try
   {
-    const ThreejsVisualizationOptions options = options_ ? *options_ : optionsFromEnvironment();
+    const ThreejsVisualizationOptions options = options_ ? *options_ : ThreejsVisualizationOptions::fromEnvironment();
     const int first_port = options.port ? *options.port : FIRST_DEFAULT_PORT;
     const int attempts = options.port ? 1 : DEFAULT_PORT_ATTEMPTS;
     for (int i = 0; i < attempts && server_ == nullptr; ++i)
@@ -152,7 +172,7 @@ void ThreejsVisualization::plotTrajectory(const tesseract::common::JointTrajecto
                                           const tesseract::scene_graph::StateSolver& /*state_solver*/,
                                           std::string /*ns*/)
 {
-  guard([&] { state_->setTrajectory(traj); });
+  guard([&] { state_->setTrajectory(withUsableTimes(traj)); });
 }
 
 void ThreejsVisualization::plotMarker(const tesseract::visualization::Marker& marker, std::string ns)

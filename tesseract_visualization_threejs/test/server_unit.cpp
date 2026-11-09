@@ -186,6 +186,17 @@ TEST_F(ServerTest, RejectsWhatItDoesNotServe)
   EXPECT_EQ(request(port, http::verb::post, "/tesseract_scene.gltf").result(), http::status::method_not_allowed);
 }
 
+TEST_F(ServerTest, ServesTheVendoredLibraries)
+{
+  const Response three = get(port, "/vendor/three/build/three.module.js");
+  EXPECT_EQ(three.result(), http::status::ok);
+  EXPECT_EQ(three.body(), std::string(staticFile("vendor/three/build/three.module.js")));
+  EXPECT_NE(three[http::field::content_type].find("javascript"), beast::string_view::npos);
+
+  EXPECT_EQ(get(port, "/vendor/nothing.js").result(), http::status::not_found);
+  EXPECT_EQ(get(port, "/vendor/../geometries.json").result(), http::status::not_found);
+}
+
 TEST_F(ServerTest, QueryStringsAreIgnored)
 {
   EXPECT_EQ(get(port, "/app.js?v=1").result(), http::status::ok);
@@ -242,6 +253,15 @@ TEST_F(ServerTest, ClosedWebsocketIsForgotten)
   for (int i = 0; i < 500 && server->connectionCount() > 0; ++i)
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
   EXPECT_EQ(server->connectionCount(), 0u);
+}
+
+TEST_F(ServerTest, StopDisconnectsWebsockets)
+{
+  WebsocketClient client(port);
+  ASSERT_TRUE(server->waitForConnection(std::chrono::seconds(5)));
+  server->stop();
+  EXPECT_EQ(server->connectionCount(), 0u);
+  EXPECT_ANY_THROW(client.read());
 }
 
 TEST(Server, StopsAndRestarts)
@@ -338,6 +358,11 @@ TEST(Plugin, LoadsAndServes)
   named->waitForConnection(5);
   EXPECT_TRUE(named->isConnected());
   EXPECT_NE(named.get(), by_default.get()) << "Each exported symbol is its own server and scene";
+  EXPECT_EQ(named.get(), loader.get("TesseractThreejsVisualizationPlugin").get()) << "One instance per loader";
+
+  tesseract::visualization::VisualizationLoader other_loader;
+  EXPECT_NE(named.get(), other_loader.get("TesseractThreejsVisualizationPlugin").get())
+      << "Each loader has an independent server and scene";
 
   tesseract::environment::Environment env;
   ASSERT_TRUE(env.init(std::string(URDF), std::make_shared<tesseract::common::GeneralResourceLocator>()));
@@ -368,4 +393,35 @@ TEST(Plugin, LoadsAndServes)
   bad.states.emplace_back(std::vector<tesseract::common::JointId>{ tesseract::common::JointId("j1") },
                           Eigen::VectorXd::Zero(2));
   EXPECT_NO_THROW(named->plotTrajectory(bad, *env.getStateSolver())) << "Plotting must not abort planning";
+
+  const std::vector<tesseract::common::JointId> joints{ tesseract::common::JointId("j1") };
+  tesseract::common::JointTrajectory untimed;
+  for (int i = 0; i < 3; ++i)
+    untimed.states.emplace_back(joints, Eigen::VectorXd::Constant(1, 0.1 * i));
+  named->plotTrajectory(untimed, *env.getStateSolver());
+  message = client.read();
+  EXPECT_EQ(message["command"].asString(), "joint_trajectory");
+  EXPECT_DOUBLE_EQ(message["params"]["trajectory"][0][1].asDouble(), 0.0);
+  EXPECT_DOUBLE_EQ(message["params"]["trajectory"][1][1].asDouble(), 2.5);
+  EXPECT_DOUBLE_EQ(message["params"]["trajectory"][2][1].asDouble(), 5.0);
+
+  tesseract::common::JointTrajectory timed;
+  timed.states.emplace_back(joints, Eigen::VectorXd::Zero(1));
+  timed.states.emplace_back(joints, Eigen::VectorXd::Ones(1));
+  timed.states[1].time = 9.0;
+  named->plotTrajectory(timed, *env.getStateSolver());
+  message = client.read();
+  EXPECT_DOUBLE_EQ(message["params"]["trajectory"][1][1].asDouble(), 9.0) << "Real timing must be kept";
+}
+
+TEST(Plugin, ConfigurationSelectsThePort)
+{
+  tesseract::visualization::VisualizationLoader loader;
+  auto visualization = loader.get("TesseractThreejsVisualizationPlugin", YAML::Load("port: 18766"));
+  ASSERT_NE(visualization, nullptr);
+  EXPECT_FALSE(visualization->isConnected());
+  EXPECT_EQ(get(18766, "/").result(), http::status::ok);
+
+  tesseract::visualization::VisualizationLoader invalid_loader;
+  EXPECT_EQ(invalid_loader.get("TesseractThreejsVisualizationPlugin", YAML::Load("port: 70000")), nullptr);
 }

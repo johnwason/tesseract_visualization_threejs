@@ -39,6 +39,17 @@ std::string environmentToGltf(const tesseract::environment::Environment& env,
 std::vector<std::uint8_t> environmentToGlb(const tesseract::environment::Environment& env,
                                            const std::string& scene_name = "");
 
+/** @brief Both forms of a scene */
+struct SceneDocuments
+{
+  std::string gltf;
+  std::vector<std::uint8_t> glb;
+};
+
+/** @brief Convert an environment to both forms at once, reading each mesh and texture only once */
+SceneDocuments environmentToDocuments(const tesseract::environment::Environment& env,
+                                      const std::string& scene_name = "");
+
 /** @brief Joint names and rows of [q0, ..., qn, t], the client's trajectory layout */
 struct TrajectoryList
 {
@@ -124,7 +135,7 @@ std::vector<ViewerMarker> convertMarker(const tesseract::visualization::Marker& 
 /** @brief SHA-256 of the data as lowercase hex. Used for ETags */
 std::string hashBytes(std::string_view data);
 
-/** @brief Contents of a compiled-in client file: "index.html" or "app.js". Empty if unknown */
+/** @brief Contents of a compiled-in client file, such as "index.html" or "vendor/three/build/three.module.js". Empty if unknown */
 std::string_view staticFile(std::string_view name);
 
 }  // namespace tesseract::visualization::threejs

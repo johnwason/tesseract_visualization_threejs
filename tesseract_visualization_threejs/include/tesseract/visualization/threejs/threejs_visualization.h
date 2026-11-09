@@ -24,6 +24,12 @@ struct ThreejsVisualizationOptions
   std::string host{ "127.0.0.1" };
   /** @brief Port to bind, 0 for any free port. If unset, the first free port from 8000 is used */
   std::optional<unsigned short> port;
+
+  /**
+   * @brief Options from TESSERACT_VISUALIZATION_THREEJS_HOST and TESSERACT_VISUALIZATION_THREEJS_PORT
+   * @throws std::invalid_argument if the port is not a number from 0 to 65535
+   */
+  static ThreejsVisualizationOptions fromEnvironment();
 };
 
 /**

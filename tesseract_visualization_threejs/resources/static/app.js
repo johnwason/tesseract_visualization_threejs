@@ -1,13 +1,13 @@
-import * as THREE from 'https://unpkg.com/three@0.153.0/build/three.module.js';
+import * as THREE from './vendor/three/build/three.module.js';
 
-import { OrbitControls } from 'https://unpkg.com/three@0.153.0/examples/jsm/controls/OrbitControls.js';
-import { GLTFLoader } from 'https://unpkg.com/three@0.153.0/examples/jsm/loaders/GLTFLoader.js';
-import { VRButton } from 'https://unpkg.com/three@0.153.0/examples/jsm/webxr/VRButton.js';
-import { LineMaterial } from 'https://unpkg.com/three@0.153.0/examples/jsm/lines/LineMaterial.js'
-import { Line2 } from 'https://unpkg.com/three@0.153.0/examples/jsm/lines/Line2.js'
-import { LineGeometry } from 'https://unpkg.com/three@0.153.0/examples/jsm/lines/LineGeometry.js'
-import { XRControllerModelFactory } from 'https://unpkg.com/three@0.153.0/examples/jsm/webxr/XRControllerModelFactory.js';
-import 'https://cdn.jsdelivr.net/npm/robust-websocket@1.0.0/robust-websocket.min.js';
+import { OrbitControls } from './vendor/three/examples/jsm/controls/OrbitControls.js';
+import { GLTFLoader } from './vendor/three/examples/jsm/loaders/GLTFLoader.js';
+import { VRButton } from './vendor/three/examples/jsm/webxr/VRButton.js';
+import { LineMaterial } from './vendor/three/examples/jsm/lines/LineMaterial.js'
+import { Line2 } from './vendor/three/examples/jsm/lines/Line2.js'
+import { LineGeometry } from './vendor/three/examples/jsm/lines/LineGeometry.js'
+import { XRControllerModelFactory } from './vendor/three/examples/jsm/webxr/XRControllerModelFactory.js';
+import './vendor/robust-websocket/robust-websocket.min.js';
 
 class TesseractViewer {
 

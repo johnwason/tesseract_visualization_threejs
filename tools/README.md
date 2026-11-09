@@ -4,7 +4,7 @@
 
 | Checkout | Version | Used for |
 | --- | --- | --- |
-| `src/tesseract` | `2b79e91c` | built |
+| `src/tesseract` | `337308dc` (`johnwason/tesseract`, `dev/visualization-plugin-factory`) | built |
 | `src/ros_industrial_cmake_boilerplate` | `0.7.4` | built |
 | `src/boost_plugin_loader` | `0.4.5` | built |
 | `src/opw_kinematics` | `0.5.5` | built |

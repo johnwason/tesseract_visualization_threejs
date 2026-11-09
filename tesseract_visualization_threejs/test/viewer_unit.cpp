@@ -228,6 +228,12 @@ TEST(StaticFiles, Embedded)
 {
   EXPECT_NE(staticFile("index.html").find("app.js"), std::string_view::npos);
   EXPECT_NE(staticFile("app.js").find("processMessage"), std::string_view::npos);
+  EXPECT_FALSE(staticFile("vendor/three/build/three.module.js").empty());
+  EXPECT_TRUE(staticFile("geometries.json").empty());
+
+  // The client must load nothing from outside
+  EXPECT_EQ(staticFile("app.js").find("https://"), std::string_view::npos);
+  EXPECT_EQ(staticFile("index.html").find("https://unpkg.com/three"), std::string_view::npos);
   EXPECT_TRUE(staticFile("../secret").empty());
 }
 
@@ -263,6 +269,14 @@ TEST(Gltf, ShapesSceneStructure)
   expectVec((*parent)["translation"], { 1, 0, 0 });
   expectVec((*parent)["rotation"], { 0, 0, 0, 1 });
   EXPECT_EQ(gltf["nodes"][(*parent)["children"][0].asInt()]["name"].asString(), "joint_box_joint");
+}
+
+TEST(Gltf, DocumentsMatchSeparateConversions)
+{
+  const auto env = shapesEnv();
+  const SceneDocuments documents = environmentToDocuments(*env, "scene");
+  EXPECT_EQ(parse(documents.gltf), parse(environmentToGltf(*env, "scene")));
+  EXPECT_EQ(documents.glb, environmentToGlb(*env, "scene"));
 }
 
 TEST(Gltf, PrimitiveScaleMaterialAndSharedAccessors)

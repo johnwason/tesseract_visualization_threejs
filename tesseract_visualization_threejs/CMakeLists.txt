@@ -29,13 +29,33 @@ set(TESSERACT_VISUALIZATION_THREEJS_TESSERACT_DEPS tesseract::common tesseract::
 # need no data files and no resource path setup.
 set(RES ${CMAKE_CURRENT_SOURCE_DIR}/resources)
 set(EMBEDDED ${CMAKE_CURRENT_BINARY_DIR}/embedded_resources_data.cpp)
+set(EMBEDDED_STATIC_FILES
+    index.html
+    app.js
+    vendor/robust-websocket/robust-websocket.min.js
+    vendor/three/build/three.module.js
+    vendor/three/examples/jsm/controls/OrbitControls.js
+    vendor/three/examples/jsm/libs/motion-controllers.module.js
+    vendor/three/examples/jsm/lines/Line2.js
+    vendor/three/examples/jsm/lines/LineGeometry.js
+    vendor/three/examples/jsm/lines/LineMaterial.js
+    vendor/three/examples/jsm/lines/LineSegments2.js
+    vendor/three/examples/jsm/lines/LineSegmentsGeometry.js
+    vendor/three/examples/jsm/loaders/GLTFLoader.js
+    vendor/three/examples/jsm/utils/BufferGeometryUtils.js
+    vendor/three/examples/jsm/webxr/VRButton.js
+    vendor/three/examples/jsm/webxr/XRControllerModelFactory.js)
+set(EMBEDDED_INPUTS "geometries.json=${RES}/geometries.json")
+set(EMBEDDED_DEPENDS ${RES}/geometries.json)
+foreach(file IN LISTS EMBEDDED_STATIC_FILES)
+  string(APPEND EMBEDDED_INPUTS ",${file}=${RES}/static/${file}")
+  list(APPEND EMBEDDED_DEPENDS ${RES}/static/${file})
+endforeach()
 add_custom_command(
   OUTPUT ${EMBEDDED}
-  COMMAND ${CMAKE_COMMAND} -DOUTPUT=${EMBEDDED}
-          "-DINPUTS=index_html=${RES}/static/index.html,app_js=${RES}/static/app.js,geometries_json=${RES}/geometries.json"
+  COMMAND ${CMAKE_COMMAND} -DOUTPUT=${EMBEDDED} "-DINPUTS=${EMBEDDED_INPUTS}"
           -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/embed_resources.cmake
-  DEPENDS ${RES}/static/index.html ${RES}/static/app.js ${RES}/geometries.json
-          ${CMAKE_CURRENT_SOURCE_DIR}/cmake/embed_resources.cmake
+  DEPENDS ${EMBEDDED_DEPENDS} ${CMAKE_CURRENT_SOURCE_DIR}/cmake/embed_resources.cmake
   VERBATIM)
 
 # Layers 1 and 2: conversion and transport independent viewer state
@@ -45,6 +65,7 @@ target_compile_features(tesseract_visualization_threejs PUBLIC cxx_std_17)
 target_compile_options(tesseract_visualization_threejs PRIVATE $<$<CXX_COMPILER_ID:GNU,Clang>:-Wall -Wextra>)
 target_link_libraries(tesseract_visualization_threejs PUBLIC Eigen3::Eigen ${TESSERACT_VISUALIZATION_THREEJS_TESSERACT_DEPS}
                       PRIVATE JsonCpp::JsonCpp OpenSSL::Crypto)
+target_include_directories(tesseract_visualization_threejs PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
 target_include_directories(tesseract_visualization_threejs PUBLIC "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
                                                    "$<INSTALL_INTERFACE:include>")
 set(TESSERACT_VISUALIZATION_THREEJS_TARGETS tesseract_visualization_threejs)

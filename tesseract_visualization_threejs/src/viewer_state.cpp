@@ -51,9 +51,8 @@ void ViewerState::send(std::string message)
 
 void ViewerState::setEnvironment(const tesseract::environment::Environment& env, const std::string& scene_name)
 {
-  std::string gltf = environmentToGltf(env, scene_name);
-  const std::vector<std::uint8_t> glb = environmentToGlb(env, scene_name);
-  setScene(std::move(gltf), std::string(glb.begin(), glb.end()));
+  SceneDocuments documents = environmentToDocuments(env, scene_name);
+  setScene(std::move(documents.gltf), std::string(documents.glb.begin(), documents.glb.end()));
 }
 
 void ViewerState::setScene(std::string gltf, std::string glb)

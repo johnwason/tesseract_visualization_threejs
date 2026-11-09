@@ -63,7 +63,7 @@ std::vector<T> readNumbers(const Json::Value& array)
 const std::map<std::string, ShapeData>& primitiveShapes()
 {
   static const std::map<std::string, ShapeData> shapes = [] {
-    const std::string_view text = detail::asView(detail::geometries_json, detail::geometries_json_size);
+    const std::string_view text = detail::embeddedFile("geometries.json");
     Json::CharReaderBuilder builder;
     const std::unique_ptr<Json::CharReader> reader(builder.newCharReader());
     Json::Value root;
@@ -483,25 +483,36 @@ private:
         const auto image_resource = texture->getTextureImage();
         const std::vector<std::uint8_t> image_bytes = image_resource->getResourceContents();
 
-        Json::Value image;
         // From the data rather than the URL: embedded textures have no file extension
         const bool is_png = image_bytes.size() >= 4 && image_bytes[0] == 0x89 && image_bytes[1] == 'P' &&
                             image_bytes[2] == 'N' && image_bytes[3] == 'G';
-        image["mimeType"] = is_png ? "image/png" : "image/jpeg";
-        image["bufferView"] = appendBufferView(image_bytes.data(), image_bytes.size());
-        const Json::ArrayIndex image_index = appendTo("images", std::move(image));
+        const bool is_jpeg = image_bytes.size() >= 3 && image_bytes[0] == 0xFF && image_bytes[1] == 0xD8 &&
+                             image_bytes[2] == 0xFF;
+        if (!is_png && !is_jpeg)
+        {
+          TESSERACT_LOG_WARN("tesseract_visualization_threejs: texture of '{}' is not PNG or JPEG and was skipped",
+                             visual_name);
+        }
+        else
+        {
 
-        Json::Value gltf_texture;
-        gltf_texture["source"] = image_index;
-        pbr["baseColorTexture"]["index"] = appendTo("textures", std::move(gltf_texture));
-        pbr["baseColorTexture"]["texCoord"] = 0;
+          Json::Value image;
+          image["mimeType"] = is_png ? "image/png" : "image/jpeg";
+          image["bufferView"] = appendBufferView(image_bytes.data(), image_bytes.size());
+          const Json::ArrayIndex image_index = appendTo("images", std::move(image));
 
-        const auto& uvs = *texture->getUVs();
-        std::vector<float> flat_uvs;
-        flat_uvs.reserve(uvs.size() * 2);
-        for (const auto& uv : uvs)
-          flat_uvs.insert(flat_uvs.end(), { static_cast<float>(uv.x()), static_cast<float>(1.0 - uv.y()) });
-        primitive["attributes"]["TEXCOORD_0"] = appendAccessor(flat_uvs, 2);
+          Json::Value gltf_texture;
+          gltf_texture["source"] = image_index;
+          pbr["baseColorTexture"]["index"] = appendTo("textures", std::move(gltf_texture));
+          pbr["baseColorTexture"]["texCoord"] = 0;
+
+          const auto& uvs = *texture->getUVs();
+          std::vector<float> flat_uvs;
+          flat_uvs.reserve(uvs.size() * 2);
+          for (const auto& uv : uvs)
+            flat_uvs.insert(flat_uvs.end(), { static_cast<float>(uv.x()), static_cast<float>(1.0 - uv.y()) });
+          primitive["attributes"]["TEXCOORD_0"] = appendAccessor(flat_uvs, 2);
+        }
       }
     }
 
@@ -564,33 +575,25 @@ private:
   std::map<std::string, ShapeAccessors> shape_accessors_;
 };
 
-}  // namespace
-
-std::string environmentToGltf(const tesseract::environment::Environment& env,
-                              const std::string& scene_name,
-                              const tesseract::common::JointTrajectory* trajectory)
+std::string finishGltf(GltfBuilder& builder)
 {
-  GltfBuilder builder(env, scene_name);
-  if (trajectory != nullptr)
-    builder.appendTrajectory(*trajectory);
-
   Json::Value gltf_buffer;
   gltf_buffer["byteLength"] = static_cast<Json::UInt64>(builder.buffer().size());
   gltf_buffer["uri"] = "data:application/octet-stream;base64," + base64Encode(builder.buffer());
+  builder.root()["buffers"] = Json::Value(Json::arrayValue);
   builder.root()["buffers"].append(std::move(gltf_buffer));
   return detail::writeJson(builder.root());
 }
 
-std::vector<std::uint8_t> environmentToGlb(const tesseract::environment::Environment& env, const std::string& scene_name)
+std::vector<std::uint8_t> finishGlb(GltfBuilder& builder)
 {
-  GltfBuilder builder(env, scene_name);
-
   std::vector<std::uint8_t>& binary = builder.buffer();
   while (binary.size() % 4 != 0)
     binary.push_back(0);
 
   Json::Value gltf_buffer;
   gltf_buffer["byteLength"] = static_cast<Json::UInt64>(binary.size());
+  builder.root()["buffers"] = Json::Value(Json::arrayValue);
   builder.root()["buffers"].append(std::move(gltf_buffer));
 
   std::string json = detail::writeJson(builder.root());
@@ -613,6 +616,33 @@ std::vector<std::uint8_t> environmentToGlb(const tesseract::environment::Environ
   appendLittleEndian(out, GLB_CHUNK_TYPE_BIN);
   out.insert(out.end(), binary.begin(), binary.end());
   return out;
+}
+
+}  // namespace
+
+std::string environmentToGltf(const tesseract::environment::Environment& env,
+                              const std::string& scene_name,
+                              const tesseract::common::JointTrajectory* trajectory)
+{
+  GltfBuilder builder(env, scene_name);
+  if (trajectory != nullptr)
+    builder.appendTrajectory(*trajectory);
+  return finishGltf(builder);
+}
+
+std::vector<std::uint8_t> environmentToGlb(const tesseract::environment::Environment& env, const std::string& scene_name)
+{
+  GltfBuilder builder(env, scene_name);
+  return finishGlb(builder);
+}
+
+SceneDocuments environmentToDocuments(const tesseract::environment::Environment& env, const std::string& scene_name)
+{
+  GltfBuilder builder(env, scene_name);
+  SceneDocuments documents;
+  documents.gltf = finishGltf(builder);  // before finishGlb, which pads the shared buffer
+  documents.glb = finishGlb(builder);
+  return documents;
 }
 
 }  // namespace tesseract::visualization::threejs

@@ -6,17 +6,18 @@
 
 namespace tesseract::visualization::threejs::detail
 {
-extern const unsigned char index_html[];
-extern const std::size_t index_html_size;
-extern const unsigned char app_js[];
-extern const std::size_t app_js_size;
-extern const unsigned char geometries_json[];
-extern const std::size_t geometries_json_size;
-
-inline std::string_view asView(const unsigned char* data, std::size_t size)
+struct EmbeddedFile
 {
-  return { reinterpret_cast<const char*>(data), size };
-}
+  const char* name;
+  const unsigned char* data;
+  std::size_t size;
+};
+
+extern const EmbeddedFile embedded_files[];
+extern const std::size_t embedded_file_count;
+
+/** @brief Contents of a compiled-in file by name, or empty if there is none */
+std::string_view embeddedFile(std::string_view name);
 }  // namespace tesseract::visualization::threejs::detail
 
 #endif  // TESSERACT_VISUALIZATION_THREEJS_EMBEDDED_RESOURCES_H

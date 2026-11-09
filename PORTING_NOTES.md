@@ -1,6 +1,6 @@
 # tesseract_visualization_threejs: port notes
 
-The C++ replacement for the scene conversion, viewer state and server in `tesseract_viewer_python`. The JavaScript client in `tesseract_visualization_threejs/resources/static` comes from the Python viewer (`tesseract_python` commit `cca2472`), with the two fixes listed below.
+The C++ replacement for the scene conversion, viewer state and server in `tesseract_viewer_python`. The JavaScript client in `tesseract_visualization_threejs/resources/static` comes from the Python viewer (`tesseract_python` commit `cca2472`), with the changes listed below.
 
 ## Layout
 
@@ -24,10 +24,13 @@ export TESSERACT_VISUALIZATION_PLUGINS=tesseract_visualization_threejs_plugin
 export TESSERACT_VISUALIZATION_THREEJS_HOST=127.0.0.1 TESSERACT_VISUALIZATION_THREEJS_PORT=8000
 ```
 
-The symbol is `TesseractThreejsVisualizationPlugin`. `VisualizationLoader` returns the exported object itself, so repeated `get()` calls share its server and scene. For independent ones, construct `ThreejsVisualization` directly; each object owns one server and scene. The class is also exported under the Ignition symbol, so existing `VisualizationLoader::get()` callers get the viewer without code changes. For wheels, link the plugin through `ThreejsVisualizationAnchor` in `threejs_visualization_anchor.h`.
+The factory symbol is `TesseractThreejsVisualizationPlugin`. Each `VisualizationLoader` owns one instance, so one server and scene; another loader, or another `ThreejsVisualization` object, is independent of it. `get()` accepts optional YAML with `host` and `port`. With no port set, each instance takes the first free port from 8000 and logs its URL.
+
+If the real Gazebo plugin is also in the plugin list, library search order decides which one the Ignition symbol loads. This plugin needs tesseract with `VisualizationFactory`; `dependencies.repos` points at that branch on `johnwason/tesseract` until it merges. The class is also exported under the Ignition symbol, so existing `VisualizationLoader::get()` callers get the viewer without code changes. For wheels, link the plugin through `ThreejsVisualizationAnchor` in `threejs_visualization_anchor.h`.
 
 ## Changes to the client
 
+- three.js and robust-websocket are served from `vendor/` and compiled in, so the viewer needs no internet access. Only the optional WebXR controller models are still fetched from a CDN, when a headset is used.
 - `addConesMarker` is renamed `addConeMarker`, the name `setMarkers` calls. Before this, a cone threw and dropped every marker after it.
 - The scene, trajectory and marker timers in `createScene` and `updateScene` are stored on `this`. They were stored on `self`, the window, so they could not be cleared.
 

@@ -10,6 +10,7 @@
 #include <mutex>
 #include <set>
 #include <string>
+#include <string_view>
 #include <thread>
 
 #include <tesseract/common/logging.h>
@@ -93,6 +94,13 @@ public:
     });
   }
 
+  /** @brief Only call while the server thread is not running */
+  void closeSocket()
+  {
+    beast::error_code ignored;
+    beast::get_lowest_layer(ws_).socket().close(ignored);
+  }
+
   void send(const std::shared_ptr<const std::string>& message)
   {
     if (queue_.size() >= MAX_QUEUED_MESSAGES)
@@ -150,6 +158,9 @@ private:
   std::deque<std::shared_ptr<const std::string>> queue_;
 };
 
+using ResponseMessage = http::response<http::span_body<const char>>;
+using Response = std::shared_ptr<ResponseMessage>;
+
 class HttpSession : public std::enable_shared_from_this<HttpSession>
 {
 public:
@@ -195,7 +206,7 @@ private:
 
   void respond()
   {
-    auto response = std::make_shared<http::response<http::string_body>>(http::status::ok, request_.version());
+    auto response = std::make_shared<ResponseMessage>(http::status::ok, request_.version());
     response->set(http::field::server, "tesseract_visualization_threejs");
     response->keep_alive(request_.keep_alive());
 
@@ -204,7 +215,7 @@ private:
     {
       response->result(http::status::method_not_allowed);
       response->set(http::field::allow, "GET, HEAD");
-      send(response, std::make_shared<const std::string>(), false);
+      send(response, nullptr, {}, false);
       return;
     }
 
@@ -213,6 +224,8 @@ private:
       sendStatic(response, "index.html", "text/html; charset=utf-8", is_head);
     else if (path == "/app.js")
       sendStatic(response, "app.js", "text/javascript; charset=utf-8", is_head);
+    else if (path.rfind("/vendor/", 0) == 0 && !staticFile(std::string_view(path).substr(1)).empty())
+      sendStatic(response, path.c_str() + 1, "text/javascript; charset=utf-8", is_head);
     else if (path == "/tesseract_scene.gltf")
       sendScene(response, state_->sceneGltf(), "model/gltf+json", "{}", is_head);
     else if (path == "/tesseract_scene.glb")
@@ -224,16 +237,14 @@ private:
     else
     {
       response->result(http::status::not_found);
-      send(response, std::make_shared<const std::string>(), is_head);
+      send(response, nullptr, {}, is_head);
     }
   }
-
-  using Response = std::shared_ptr<http::response<http::string_body>>;
 
   void sendStatic(const Response& response, const char* name, const char* content_type, bool is_head)
   {
     response->set(http::field::content_type, content_type);
-    send(response, std::make_shared<const std::string>(staticFile(name)), is_head);
+    send(response, nullptr, staticFile(name), is_head);
   }
 
   void sendScene(const Response& response,
@@ -244,7 +255,7 @@ private:
   {
     response->set(http::field::content_type, content_type);
     response->set(http::field::etag, "\"" + resource.etag + "\"");
-    send(response, resource.body != nullptr ? resource.body : std::make_shared<const std::string>(empty_body), is_head);
+    send(response, resource.body, resource.body != nullptr ? std::string_view(*resource.body) : std::string_view(empty_body), is_head);
   }
 
   void sendDocument(const Response& response, const ViewerResource& resource, bool is_head)
@@ -252,22 +263,27 @@ private:
     if (resource.body == nullptr)
     {
       response->result(http::status::not_found);
-      send(response, std::make_shared<const std::string>(), is_head);
+      send(response, nullptr, {}, is_head);
       return;
     }
     response->set(http::field::content_type, "application/json");
     response->set(http::field::etag, "\"" + resource.etag + "\"");
-    send(response, resource.body, is_head);
+    send(response, resource.body, *resource.body, is_head);
   }
 
-  void send(const Response& response, const std::shared_ptr<const std::string>& body, bool is_head)
+  /**
+   * @brief Send a response that refers to the body rather than copying it
+   * @param owner Keeps the body alive during the write. Null for bodies in static storage
+   */
+  void send(const Response& response, std::shared_ptr<const std::string> owner, std::string_view body, bool is_head)
   {
-    response->content_length(body->size());
+    response->content_length(body.size());
     if (!is_head)
-      response->body() = *body;
+      response->body() = ResponseMessage::body_type::value_type(body.data(), body.size());
 
     stream_.expires_after(HTTP_TIMEOUT);
-    http::async_write(stream_, *response, [self = shared_from_this(), response](beast::error_code ec, std::size_t) {
+    http::async_write(
+        stream_, *response, [self = shared_from_this(), response, owner = std::move(owner)](beast::error_code ec, std::size_t) {
       if (ec)
         return;
       if (!response->keep_alive())
@@ -338,7 +354,10 @@ public:
     thread_.join();
     acceptor_.reset();
     for (const auto& session : hub_->snapshot())
+    {
+      session->closeSocket();  // so that clients notice and reconnect after a restart
       hub_->remove(session);
+    }
   }
 
   unsigned short port() const { return bound_port_; }

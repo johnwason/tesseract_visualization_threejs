@@ -2,14 +2,10 @@
 // actually built. Expected poses come from tesseract's state solver, via the C++ fixture.
 const { test, expect } = require('@playwright/test');
 const { spawn } = require('child_process');
-const crypto = require('crypto');
-const fs = require('fs');
-const path = require('path');
 const readline = require('readline');
 
 const OUT = process.env.VIEWER_BROWSER_OUTPUT || '/ws/build/browser';
 const FIXTURE = process.env.VIEWER_BROWSER_FIXTURE || '/ws/build/colcon/tesseract_visualization_threejs/tesseract_visualization_threejs_browser_fixture';
-const CDN_CACHE = `${OUT}/cdn`;
 
 class Fixture {
   async start() {
@@ -26,23 +22,6 @@ class Fixture {
   stop() { this.proc.kill(); }
 }
 
-// The client loads three.js from CDNs. A local cache keeps repeat runs off the network.
-async function cdnRoute(route) {
-  const url = route.request().url();
-  const file = path.join(CDN_CACHE, crypto.createHash('sha256').update(url).digest('hex'));
-  if (!fs.existsSync(file)) {
-    const response = await route.fetch();
-    expect(response.ok(), `CDN fetch of ${url}`).toBeTruthy();
-    fs.mkdirSync(CDN_CACHE, { recursive: true });
-    fs.writeFileSync(file, await response.body());
-  }
-  await route.fulfill({
-    body: fs.readFileSync(file),
-    contentType: 'text/javascript',
-    headers: { 'access-control-allow-origin': '*' },
-  });
-}
-
 let fixture;
 
 test.beforeAll(async () => {
@@ -53,7 +32,7 @@ test.afterAll(() => fixture.stop());
 
 /** @brief Opens the client and records anything that went wrong */
 async function openViewer(page) {
-  const problems = { pageErrors: [], badResponses: [], log: [] };
+  const problems = { pageErrors: [], badResponses: [], log: [], externalRequests: [] };
   page.on('pageerror', e => problems.pageErrors.push(String(e)));
   page.on('console', m => problems.log.push(m.text()));
   page.on('response', r => {
@@ -62,7 +41,11 @@ async function openViewer(page) {
     if (r.status() >= 400 && !(r.status() === 404 && expected404)) problems.badResponses.push(`${r.status()} ${r.url()}`);
   });
 
-  await page.route(/https:\/\/(unpkg\.com|cdn\.jsdelivr\.net)\//, cdnRoute);
+  // The viewer must work with no internet access
+  await page.route(url => url.hostname !== '127.0.0.1', async route => {
+    problems.externalRequests.push(route.request().url());
+    await route.abort();
+  });
 
   // The viewer instance is private to the module. Only this test copy of app.js exposes it.
   await page.route('**/app.js', async route => {
@@ -82,6 +65,7 @@ async function openViewer(page) {
 function expectNoProblems(problems) {
   expect(problems.pageErrors).toEqual([]);
   expect(problems.badResponses).toEqual([]);
+  expect(problems.externalRequests).toEqual([]);
 }
 
 /** @brief The three.js scene, in tesseract's frame (undoing the client's Z-up root) */
@@ -145,7 +129,7 @@ function sceneSnapshot(page) {
 /** @brief Gives the page access to THREE, using the same module the client imported */
 async function exposeThree(page) {
   await page.evaluate(async () => {
-    window.__three = await import('https://unpkg.com/three@0.153.0/build/three.module.js');
+    window.__three = await import('/vendor/three/build/three.module.js');
   });
 }
 
@@ -355,7 +339,7 @@ test('the GLB document loads and matches the glTF document', async ({ page }) =>
   const problems = await openViewer(page);
 
   const summary = await page.evaluate(async () => {
-    const { GLTFLoader } = await import('https://unpkg.com/three@0.153.0/examples/jsm/loaders/GLTFLoader.js');
+    const { GLTFLoader } = await import('/vendor/three/examples/jsm/loaders/GLTFLoader.js');
     const describe = url => new Promise((resolve, reject) => {
       new GLTFLoader().load(url, gltf => {
         const nodes = [];

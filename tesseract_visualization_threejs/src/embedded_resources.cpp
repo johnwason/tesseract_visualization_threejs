@@ -4,12 +4,20 @@
 
 namespace tesseract::visualization::threejs
 {
+namespace detail
+{
+std::string_view embeddedFile(std::string_view name)
+{
+  for (std::size_t i = 0; i < embedded_file_count; ++i)
+    if (name == embedded_files[i].name)
+      return { reinterpret_cast<const char*>(embedded_files[i].data), embedded_files[i].size };
+  return {};
+}
+}  // namespace detail
+
 std::string_view staticFile(std::string_view name)
 {
-  if (name == "index.html")
-    return detail::asView(detail::index_html, detail::index_html_size);
-  if (name == "app.js")
-    return detail::asView(detail::app_js, detail::app_js_size);
-  return {};
+  // The primitive meshes are compiled in beside the client, but are not part of it
+  return name == "geometries.json" ? std::string_view{} : detail::embeddedFile(name);
 }
 }  // namespace tesseract::visualization::threejs
