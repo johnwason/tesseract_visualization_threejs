@@ -54,7 +54,7 @@ if(TESSERACT_VISUALIZATION_THREEJS_BUILD_SERVER)
   find_package(Threads REQUIRED)
 
   # Layer 3: HTTP and websocket server
-  add_library(tesseract_visualization_threejs_server src/viewer_server.cpp)
+  add_library(tesseract_visualization_threejs_server src/viewer_server.cpp src/threejs_visualization.cpp)
   target_compile_options(tesseract_visualization_threejs_server PRIVATE $<$<CXX_COMPILER_ID:GNU,Clang>:-Wall -Wextra>)
   target_link_libraries(tesseract_visualization_threejs_server PUBLIC tesseract_visualization_threejs PRIVATE Boost::headers Threads::Threads)
 

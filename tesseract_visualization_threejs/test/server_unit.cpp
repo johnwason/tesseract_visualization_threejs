@@ -14,6 +14,7 @@
 #include <tesseract/common/resource_locator.h>
 #include <tesseract/environment/environment.h>
 #include <tesseract/state_solver/state_solver.h>
+#include <tesseract/visualization/threejs/threejs_visualization.h>
 #include <tesseract/visualization/threejs/viewer_server.h>
 #include <tesseract/visualization/threejs/viewer_state.h>
 #include <tesseract/visualization/markers/axis_marker.h>
@@ -264,6 +265,57 @@ TEST(Server, PortInUseThrowsFromStart)
   EXPECT_ANY_THROW(second.start());
 }
 
+TEST(ThreejsVisualization, EachObjectIsAnIndependentServerAndScene)
+{
+  ThreejsVisualizationOptions options;
+  options.port = 0;
+  ThreejsVisualization first(options);
+  ThreejsVisualization second(options);
+
+  EXPECT_EQ(first.port(), 0) << "The server should only start on first use";
+  EXPECT_FALSE(first.isConnected());
+  EXPECT_FALSE(second.isConnected());
+  ASSERT_NE(first.port(), 0);
+  ASSERT_NE(second.port(), 0);
+  EXPECT_NE(first.port(), second.port());
+  EXPECT_NE(first.state(), second.state());
+
+  WebsocketClient client(first.port());
+  first.waitForConnection(5);
+  EXPECT_TRUE(first.isConnected());
+  EXPECT_FALSE(second.isConnected());
+
+  tesseract::environment::Environment env;
+  ASSERT_TRUE(env.init(std::string(URDF), std::make_shared<tesseract::common::GeneralResourceLocator>()));
+  first.plotEnvironment(env);
+  EXPECT_EQ(client.read()["command"].asString(), "refresh_scene");
+
+  EXPECT_NE(get(first.port(), "/tesseract_scene.gltf").body(), "{}");
+  EXPECT_EQ(get(second.port(), "/tesseract_scene.gltf").body(), "{}");
+}
+
+TEST(ThreejsVisualization, UnspecifiedPortMovesToTheNextFreeOne)
+{
+  ThreejsVisualization first{ ThreejsVisualizationOptions{} };
+  ThreejsVisualization second{ ThreejsVisualizationOptions{} };
+  first.isConnected();
+  second.isConnected();
+  ASSERT_GE(first.port(), 8000);
+  EXPECT_GT(second.port(), first.port());
+}
+
+TEST(ThreejsVisualization, InvalidPortInTheEnvironmentDoesNotStart)
+{
+#ifdef _WIN32
+  _putenv_s("TESSERACT_VISUALIZATION_THREEJS_PORT", "70000");
+#else
+  setenv("TESSERACT_VISUALIZATION_THREEJS_PORT", "70000", 1);
+#endif
+  ThreejsVisualization visualization;
+  EXPECT_FALSE(visualization.isConnected());
+  EXPECT_EQ(visualization.port(), 0);
+}
+
 TEST(Plugin, LoadsAndServes)
 {
   // Nothing else in this process uses the plugin's server, so a fixed port is safe within the test
@@ -285,7 +337,7 @@ TEST(Plugin, LoadsAndServes)
   WebsocketClient client(plugin_port);
   named->waitForConnection(5);
   EXPECT_TRUE(named->isConnected());
-  EXPECT_TRUE(by_default->isConnected()) << "Both symbols must share one server";
+  EXPECT_NE(named.get(), by_default.get()) << "Each exported symbol is its own server and scene";
 
   tesseract::environment::Environment env;
   ASSERT_TRUE(env.init(std::string(URDF), std::make_shared<tesseract::common::GeneralResourceLocator>()));

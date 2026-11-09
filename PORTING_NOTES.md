@@ -24,7 +24,7 @@ export TESSERACT_VISUALIZATION_PLUGINS=tesseract_visualization_threejs_plugin
 export TESSERACT_VISUALIZATION_THREEJS_HOST=127.0.0.1 TESSERACT_VISUALIZATION_THREEJS_PORT=8000
 ```
 
-The symbol is `TesseractThreejsVisualizationPlugin`. The class is also exported under the Ignition symbol, so existing `VisualizationLoader::get()` callers get the viewer without code changes. For wheels, link the plugin through `ThreejsVisualizationAnchor` in `threejs_visualization_anchor.h`.
+The symbol is `TesseractThreejsVisualizationPlugin`. `VisualizationLoader` returns the exported object itself, so repeated `get()` calls share its server and scene. For independent ones, construct `ThreejsVisualization` directly; each object owns one server and scene. The class is also exported under the Ignition symbol, so existing `VisualizationLoader::get()` callers get the viewer without code changes. For wheels, link the plugin through `ThreejsVisualizationAnchor` in `threejs_visualization_anchor.h`.
 
 ## Changes to the client
 

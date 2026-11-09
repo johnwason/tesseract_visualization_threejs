@@ -67,6 +67,10 @@ jobs:
           npm init -y > /dev/null
           npm install --no-audit --no-fund @playwright/test@1.49.1
           npx playwright install --with-deps chromium
+          # shellcheck disable=SC1091
+          source "$GITHUB_WORKSPACE/upstream_ws/install/setup.bash"
+          # shellcheck disable=SC1091
+          source "$GITHUB_WORKSPACE/target_ws/install/setup.bash"
           package_xml=$(find "$GITHUB_WORKSPACE" -path '*/share/tesseract/package.xml' | head -1)
           export NODE_PATH=/tmp/playwright/node_modules
           export TESSERACT_RESOURCE_PATH=$(dirname "$(dirname "$package_xml")")
@@ -104,8 +108,8 @@ jobs:
         -DVCPKG_APPLOCAL_DEPS=OFF -DCMAKE_OSX_DEPLOYMENT_TARGET=12.0
         -DOpenMP_CXX_INCLUDE_DIR=${{ matrix.config.homebrew_root }}/opt/libomp/include
         -DOpenMP_C_INCLUDE_DIR=${{ matrix.config.homebrew_root }}/opt/libomp/include
-        -DOpenMP_CXX_LIB_NAMES=libomp -DOpenMP_CXX_FLAGS=-fopenmp
-        -DOpenMP_C_LIB_NAMES=libomp -DOpenMP_C_FLAGS=-fopenmp
+        -DOpenMP_CXX_LIB_NAMES=libomp -DOpenMP_CXX_FLAGS="-Xpreprocessor -fopenmp"
+        -DOpenMP_C_LIB_NAMES=libomp -DOpenMP_C_FLAGS="-Xpreprocessor -fopenmp"
         -DOpenMP_libomp_LIBRARY=${{ matrix.config.homebrew_root }}/opt/libomp/lib/libomp.dylib
     steps:
       - uses: actions/checkout@v4
@@ -140,9 +144,9 @@ jobs:
           ccache-prefix: ci-macos-${{ matrix.config.arch }}
           vcs-file: dependencies.repos
           rosdep-enabled: false
-          upstream-args: --merge-install --cmake-args ${{ env.CMAKE_COMMON }}
+          upstream-args: --event-handlers console_direct+ --merge-install --cmake-args ${{ env.CMAKE_COMMON }}
           target-path: target_ws/src
-          target-args: --merge-install --cmake-args ${{ env.CMAKE_COMMON }} ${{ env.TEST_CMAKE_ARGS }}
+          target-args: --event-handlers console_direct+ --merge-install --cmake-args ${{ env.CMAKE_COMMON }} ${{ env.TEST_CMAKE_ARGS }}
           run-tests-args: --merge-install
 
   windows:
@@ -181,6 +185,6 @@ jobs:
         with:
           ccache-prefix: ci-windows
           vcs-file: dependencies.repos
-          upstream-args: --cmake-args -G "Ninja" -DVCPKG_TARGET_TRIPLET=${{ env.TRIPLET }} -DCMAKE_BUILD_TYPE=Release
+          upstream-args: --event-handlers console_direct+ --cmake-args -G "Ninja" -DVCPKG_TARGET_TRIPLET=${{ env.TRIPLET }} -DCMAKE_BUILD_TYPE=Release
           target-path: target_ws/src
-          target-args: --cmake-args -G "Ninja" -DVCPKG_TARGET_TRIPLET=${{ env.TRIPLET }} -DCMAKE_BUILD_TYPE=Release ${{ env.TEST_CMAKE_ARGS }}
+          target-args: --event-handlers console_direct+ --cmake-args -G "Ninja" -DVCPKG_TARGET_TRIPLET=${{ env.TRIPLET }} -DCMAKE_BUILD_TYPE=Release ${{ env.TEST_CMAKE_ARGS }}
