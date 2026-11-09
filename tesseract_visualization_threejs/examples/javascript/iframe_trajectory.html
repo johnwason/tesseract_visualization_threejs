@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<!-- Port of tesseract_viewer_python/examples/javascript/tesseract_viewer_python_iframe_trajectory.html
+     Embeds the viewer and sends it a trajectory. Run abb_irb2400_viewer first.
+     Add ?host=HOST&port=NNNN to the URL if the viewer is not on localhost:8000. -->
+<html>
+  <head><meta charset="UTF-8" /></head>
+  <body>
+    <iframe id="viewer" width="100%" height="600"></iframe>
+    <script>
+      const params = new URLSearchParams(location.search);
+      const host = params.get("host") || "localhost";
+      const port = params.get("port") || "8000";
+      const viewer = document.getElementById("viewer");
+
+      viewer.addEventListener("load", () => {
+        setTimeout(() => {
+          // Each waypoint is the joint positions with the time as its last element
+          const trajectory = [
+            [0.6, 0.2, 0.3, 0.4, 0.5, 0.6, 0],
+            [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 5],
+            [-0.7, 0.4, -0.9, -0.1, 0.1, 0.2, 10],
+          ];
+          // The client takes a JSON string, with the data under "params"
+          viewer.contentWindow.postMessage(
+            JSON.stringify({
+              command: "joint_trajectory",
+              params: {
+                joint_names: ["joint_1", "joint_2", "joint_3", "joint_4", "joint_5", "joint_6"],
+                trajectory,
+              },
+            }),
+            "*"
+          );
+        }, 3000);  // the scene loads after the page does
+      });
+
+      viewer.src = `http://${host}:${port}/index.html?noupdate=true`;
+    </script>
+  </body>
+</html>

@@ -2,6 +2,7 @@
 // actually built. Expected poses come from tesseract's state solver, via the C++ fixture.
 const { test, expect } = require('@playwright/test');
 const { spawn } = require('child_process');
+const path = require('path');
 const readline = require('readline');
 
 const OUT = process.env.VIEWER_BROWSER_OUTPUT || '/ws/build/browser';
@@ -30,6 +31,25 @@ test.beforeAll(async () => {
 });
 test.afterAll(() => fixture.stop());
 
+/** @brief The viewer must work with no internet access */
+async function blockExternalRequests(page, problems) {
+  await page.route(url => url.protocol !== 'file:' && !['127.0.0.1', 'localhost'].includes(url.hostname), async route => {
+    problems.externalRequests.push(route.request().url());
+    await route.abort();
+  });
+}
+
+/** @brief The viewer instance is private to the module. Only this test copy of app.js exposes it. */
+async function exposeViewer(page) {
+  await page.route('**/app.js', async route => {
+    const response = await route.fetch();
+    const source = await response.text();
+    const hook = 'await viewer.createScene();';
+    expect(source.split(hook).length, 'app.js bootstrap has changed').toBe(2);
+    await route.fulfill({ response, body: source.replace(hook, `window.__viewer = viewer; ${hook}`) });
+  });
+}
+
 /** @brief Opens the client and records anything that went wrong */
 async function openViewer(page) {
   const problems = { pageErrors: [], badResponses: [], log: [], externalRequests: [] };
@@ -41,21 +61,9 @@ async function openViewer(page) {
     if (r.status() >= 400 && !(r.status() === 404 && expected404)) problems.badResponses.push(`${r.status()} ${r.url()}`);
   });
 
-  // The viewer must work with no internet access
-  await page.route(url => url.hostname !== '127.0.0.1', async route => {
-    problems.externalRequests.push(route.request().url());
-    await route.abort();
-  });
+  await blockExternalRequests(page, problems);
 
-  // The viewer instance is private to the module. Only this test copy of app.js exposes it.
-  await page.route('**/app.js', async route => {
-    const response = await route.fetch();
-    const source = await response.text();
-    const hook = 'await viewer.createScene();';
-    expect(source.split(hook).length, 'app.js bootstrap has changed').toBe(2);
-    await route.fulfill({ response, body: source.replace(hook, `window.__viewer = viewer; ${hook}`) });
-  });
-
+  await exposeViewer(page);
   await page.goto(`http://127.0.0.1:${fixture.port}/`);
   await expect.poll(() => problems.log.some(l => l.includes('WebSocket connection established'))).toBeTruthy();
   await page.waitForFunction(() => window.__viewer && window.__viewer._root_env && window.__viewer._root_env.children.length > 0);
@@ -213,7 +221,7 @@ test('a trajectory animates the joints', async ({ page }) => {
     return samples.size;
   }, { intervals: [100], message: 'joint_1 should keep moving' }).toBeGreaterThan(3);
 
-  expect(await page.evaluate(() => window.__viewer._animation.duration)).toBeCloseTo(2, 3);
+  expect(await page.evaluate(() => window.__viewer._animation && window.__viewer._animation.duration)).toBeCloseTo(2, 3);
   expectNoProblems(problems);
 });
 
@@ -357,4 +365,221 @@ test('the GLB document loads and matches the glTF document', async ({ page }) =>
   expect(summary.glb.triangles).toBeGreaterThan(1000);
   expect(summary.glb).toEqual(summary.gltf);
   expectNoProblems(problems);
+});
+
+// A scene can change while markers and trajectories are still in place
+const markerNames = async page => Object.keys((await sceneSnapshot(page)).markers);
+
+test('markers and the trajectory survive a scene reload', async ({ page }) => {
+  await fixture.send('env shapes');
+  const problems = await openViewer(page);
+  await exposeThree(page);
+
+  await fixture.send('markers');
+  await fixture.send('trajectory');
+  await expect.poll(() => markerNames(page)).toEqual(expect.arrayContaining(['after_unsupported', 'cylinder']));
+
+  await fixture.send('env_keep shapes_extra');
+  await expect.poll(async () => (await sceneSnapshot(page)).links.extra_link !== undefined).toBeTruthy();
+
+  await expect.poll(() => markerNames(page)).toEqual(expect.arrayContaining(['after_unsupported', 'cylinder']));
+  const { markers } = await sceneSnapshot(page);
+  expect(markers.sphere.position[1]).toBeCloseTo(3, 5);
+  expectSize(markers.cylinder, [0.2, 0.2, 0.4], 'cylinder marker', 1);
+
+  await expect.poll(() => page.evaluate(() => window.__viewer._animation && window.__viewer._animation.duration)).toBeCloseTo(2, 3);
+  await expect.poll(() => page.evaluate(() => window.__viewer._animation_action && window.__viewer._animation_action.isRunning())).toBeTruthy();
+  const quaternion = () => page.evaluate(() => {
+    let value = null;
+    window.__viewer._root_env.traverse(o => {
+      if (o.userData && o.userData.tesseract_joint && o.userData.tesseract_joint.name === 'cylinder_joint') value = o.quaternion.toArray();
+    });
+    return JSON.stringify(value);
+  });
+  const samples = new Set();
+  await expect.poll(async () => {
+    samples.add(await quaternion());
+    return samples.size;
+  }, { intervals: [100], message: 'the trajectory should animate the reloaded joints' }).toBeGreaterThan(3);
+  expectNoProblems(problems);
+});
+
+test('a marker on a removed link is dropped without losing the others', async ({ page }) => {
+  await fixture.send('env shapes_extra');
+  const problems = await openViewer(page);
+  await exposeThree(page);
+
+  await fixture.send('marker_on extra_link on_removed');
+  await fixture.send('marker_on world on_world');
+  await expect.poll(() => markerNames(page)).toEqual(expect.arrayContaining(['on_removed', 'on_world']));
+
+  await fixture.send('env_keep shapes');
+  await expect.poll(async () => (await sceneSnapshot(page)).links.extra_link === undefined).toBeTruthy();
+  await expect.poll(() => markerNames(page)).toEqual(['on_world']);
+  expect(problems.log.some(l => l.includes('Parent link not found: extra_link'))).toBeTruthy();
+  expectNoProblems(problems);
+});
+
+test('a stored trajectory for removed joints does not break the new scene', async ({ page }) => {
+  await fixture.send('env abb');
+  const problems = await openViewer(page);
+  await exposeThree(page);
+  await fixture.send('trajectory');
+  await expect.poll(() => page.evaluate(() => window.__viewer._animation && window.__viewer._animation.duration)).toBeCloseTo(2, 3);
+
+  await fixture.send('env_keep shapes');
+  await expect.poll(async () => (await sceneSnapshot(page)).links.box_link !== undefined).toBeTruthy();
+  await page.waitForTimeout(1000);  // the client refetches the stored trajectory after a reload
+
+  const moved = await fixture.send('joints 0.5 0.25');
+  await expectAllLinkPoses(page, moved.poses);
+  expectNoProblems(problems);
+});
+
+test('a trajectory for joints that do not exist does not throw', async ({ page }) => {
+  await fixture.send('env shapes');
+  const problems = await openViewer(page);
+  await exposeThree(page);
+
+  await fixture.send('stale_trajectory not_a_joint');
+  await page.waitForTimeout(500);
+  expectNoProblems(problems);
+
+  const moved = await fixture.send('joints 0.5 0.25');
+  await expectAllLinkPoses(page, moved.poses);
+  expectNoProblems(problems);
+});
+
+test('a trajectory sent right after a scene change reaches the new scene', async ({ page }) => {
+  await fixture.send('env abb');
+  const problems = await openViewer(page);
+  await exposeThree(page);
+
+  // The trajectory arrives while the client still shows the old scene
+  await fixture.send('env_keep shapes');
+  await fixture.send('trajectory');
+
+  await expect.poll(async () => (await sceneSnapshot(page)).links.box_link !== undefined).toBeTruthy();
+  const samples = new Set();
+  await expect.poll(async () => {
+    samples.add(await page.evaluate(() => {
+      let value = null;
+      window.__viewer._root_env.traverse(o => {
+        if (o.userData && o.userData.tesseract_joint && o.userData.tesseract_joint.name === 'cylinder_joint') value = o.quaternion.toArray();
+      });
+      return JSON.stringify(value);
+    }));
+    return samples.size;
+  }, { intervals: [100], message: 'the trajectory should animate the new scene' }).toBeGreaterThan(3);
+  expectNoProblems(problems);
+});
+
+test('textured meshes load again after the scene is replaced', async ({ page }) => {
+  await fixture.send('env textured');
+  const problems = await openViewer(page);
+  await exposeThree(page);
+  await expect.poll(async () => (await sceneSnapshot(page)).textures.length).toBeGreaterThan(0);
+  const textures = (await sceneSnapshot(page)).textures.length;
+
+  await fixture.send('env abb');
+  await expect.poll(async () => (await sceneSnapshot(page)).links.link_1 !== undefined).toBeTruthy();
+  const robot = await sceneSnapshot(page);
+  expect(robot.textures.length).toBe(0);
+  expect(robot.links.mesh_dae_link).toBeUndefined();
+  expect(robot.triangles).toBeGreaterThan(1000);
+
+  await fixture.send('env textured');
+  await expect.poll(async () => (await sceneSnapshot(page)).textures.length).toBe(textures);
+  for (const texture of (await sceneSnapshot(page)).textures) expect(texture.width).toBeGreaterThan(0);
+  expect((await sceneSnapshot(page)).links.link_1).toBeUndefined();
+  expectNoProblems(problems);
+});
+
+// The compiled examples, run as a user would run them
+for (const [example, port, links] of [
+  ['shapes_viewer', 18771, 4],
+  ['material_mesh_viewer', 18772, 3],
+  ['abb_irb2400_viewer', 18773, 8],
+]) {
+  test(`the ${example} example serves its scene`, async ({ page }) => {
+    const binary = path.join(path.dirname(FIXTURE), `tesseract_visualization_threejs_${example}`);
+    const proc = spawn(binary, [], {
+      stdio: ['pipe', 'ignore', 'inherit'],
+      env: { ...process.env, TESSERACT_VISUALIZATION_THREEJS_PORT: String(port) },
+    });
+    try {
+      const problems = { pageErrors: [], badResponses: [], log: [], externalRequests: [] };
+      page.on('pageerror', e => problems.pageErrors.push(String(e)));
+      await blockExternalRequests(page, problems);
+      await exposeViewer(page);
+      await expect.poll(async () => {
+        try {
+          return (await page.request.get(`http://127.0.0.1:${port}/`)).status();
+        } catch (e) {
+          return 0;
+        }
+      }).toBe(200);
+
+      await page.goto(`http://127.0.0.1:${port}/`);
+      await page.waitForFunction(() => window.__viewer && window.__viewer._root_env && window.__viewer._root_env.children.length > 0);
+      await exposeThree(page);
+      await expect.poll(async () => Object.keys((await sceneSnapshot(page)).links).length).toBeGreaterThanOrEqual(links);
+
+      if (example === 'abb_irb2400_viewer') {
+        await expect.poll(async () => Object.keys((await sceneSnapshot(page)).markers).length).toBeGreaterThan(50);
+        expect(await page.evaluate(() => window.__viewer._animation && window.__viewer._animation.duration)).toBeCloseTo(5, 3);
+      }
+      await shot(page, `example_${example}`);
+      expect(problems.pageErrors).toEqual([]);
+      expect(problems.externalRequests).toEqual([]);
+    } finally {
+      proc.kill();
+    }
+  });
+}
+
+// The pages in examples/javascript, embedding the viewer
+const IFRAME_EXAMPLES = path.join(__dirname, '../../examples/javascript');
+
+async function openIframeExample(page, file) {
+  const problems = { pageErrors: [], badResponses: [], log: [], externalRequests: [] };
+  page.on('pageerror', e => problems.pageErrors.push(String(e)));
+  await blockExternalRequests(page, problems);
+  await exposeViewer(page);
+  await page.goto(`file://${IFRAME_EXAMPLES}/${file}?host=127.0.0.1&port=${fixture.port}`);
+  await expect.poll(() => page.frames().length).toBeGreaterThan(1);
+  const frame = page.frames().find(f => f.url().includes('index.html'));
+  await frame.waitForFunction(() => window.__viewer && window.__viewer._root_env && window.__viewer._root_env.children.length > 0);
+  return { frame, problems };
+}
+
+test('the iframe example drives the joints through postMessage', async ({ page }) => {
+  await fixture.send('env abb');
+  const { frame, problems } = await openIframeExample(page, 'iframe_joint_positions.html');
+
+  const seen = new Set();
+  await expect.poll(async () => {
+    const z = await frame.evaluate(() => {
+      let value = null;
+      window.__viewer._root_env.traverse(o => {
+        if (o.userData && o.userData.tesseract_joint && o.userData.tesseract_joint.name === 'joint_1') value = o.quaternion.z;
+      });
+      return value;
+    });
+    // joint_1 turns about Z, by 0.6 and then -0.6 radians
+    if (Math.abs(Math.abs(z) - Math.sin(0.3)) < 1e-3) seen.add(Math.sign(z));
+    return seen.size;
+  }, { intervals: [100], message: 'joint_1 should reach both positions' }).toBe(2);
+
+  expect(problems.pageErrors).toEqual([]);
+  expect(problems.externalRequests).toEqual([]);
+});
+
+test('the iframe example sends a trajectory through postMessage', async ({ page }) => {
+  await fixture.send('env abb');
+  const { frame, problems } = await openIframeExample(page, 'iframe_trajectory.html');
+
+  await expect.poll(() => frame.evaluate(() => window.__viewer._animation && window.__viewer._animation.duration)).toBeCloseTo(10, 3);
+  expect(problems.pageErrors).toEqual([]);
+  expect(problems.externalRequests).toEqual([]);
 });

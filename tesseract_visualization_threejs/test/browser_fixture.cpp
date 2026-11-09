@@ -204,18 +204,21 @@ int main()
     Json::Value out;
     try
     {
-      if (command == "env")
+      if (command == "env" || command == "env_keep")
       {
         std::string name;
         in >> name;
         env = loadEnvironment(name);
         state->setEnvironment(*env);
-        state->clearAllMarkers();
-        std::vector<std::string> active;
-        for (const auto& id : env->getActiveJointIds())
-          active.push_back(id.name());
-        if (!active.empty())
-          state->setJointPositions(active, Eigen::VectorXd::Zero(static_cast<Eigen::Index>(active.size())));
+        if (command == "env")  // env_keep leaves the markers and trajectory as they were
+        {
+          state->clearAllMarkers();
+          std::vector<std::string> active;
+          for (const auto& id : env->getActiveJointIds())
+            active.push_back(id.name());
+          if (!active.empty())
+            state->setJointPositions(active, Eigen::VectorXd::Zero(static_cast<Eigen::Index>(active.size())));
+        }
         out["active_joints"] = Json::Value(Json::arrayValue);
         for (const auto& id : env->getActiveJointIds())
           out["active_joints"].append(id.name());
@@ -260,6 +263,19 @@ int main()
         out["names"] = Json::Value(Json::arrayValue);
         for (const auto& marker : markers)
           out["names"].append(marker.name);
+      }
+      else if (command == "marker_on")
+      {
+        std::string link;
+        std::string name;
+        in >> link >> name;
+        state->addSphereMarker(Eigen::Vector3d(0, 0, 4), 0.1, { 1, 0, 0, 1 }, link, name);
+      }
+      else if (command == "stale_trajectory")
+      {
+        std::string joint;
+        in >> joint;
+        state->setTrajectoryList(TrajectoryList{ { joint }, { { 0.0, 0.0 }, { 1.0, 1.0 } } });
       }
       else if (command == "clear")
       {

@@ -85,17 +85,24 @@ class TesseractViewer {
 
         let _this = this;
         
-        // Only add VR button if it is supported
-        if ( 'xr' in navigator )
+        // Only add VR button if it is supported. Checking throws in an iframe without xr permission.
+        try
         {
-            if (await navigator.xr.isSessionSupported( 'immersive-vr' ))
+            if ( 'xr' in navigator )
             {
-                document.body.appendChild( VRButton.createButton( renderer ) );
+                if (await navigator.xr.isSessionSupported( 'immersive-vr' ))
+                {
+                    document.body.appendChild( VRButton.createButton( renderer ) );
 
-                renderer.xr.addEventListener('sessionstart', function() {
-                    _this.enterXR();
-                });
+                    renderer.xr.addEventListener('sessionstart', function() {
+                        _this.enterXR();
+                    });
+                }
             }
+        }
+        catch (e)
+        {
+            console.log("WebXR is not available: " + e);
         }
 
         renderer.setAnimationLoop( this.render.bind(this) );
@@ -260,12 +267,14 @@ class TesseractViewer {
 
         this._root_env.add(gltf.scene);        
 
+        // The mixer caches bindings to the old scene's nodes, which would leave animations driving them
+        this._animation_mixer.stopAllAction();
+        this._animation_mixer.uncacheRoot(this._root_env);
+        this._animation = null;
+        this._animation_action = null;
+
         if (gltf.animations.length > 0)
         {
-            
-            this._animation_mixer.stopAllAction();
-            this._animation_mixer.uncacheRoot(this._root_env);
-             
             let animation_action = this._animation_mixer.clipAction(gltf.animations[0]);
             animation_action.play();
 
@@ -397,6 +406,11 @@ class TesseractViewer {
         let tracks = []
         joint_names.forEach((joint_name, joint_index) => {
             let joint = joints[joint_name];
+            if (!joint) {
+                // A trajectory can arrive just before the scene that has this joint
+                console.log("Trajectory joint not found: " + joint_name);
+                return;
+            }
             switch (joint.type) {
                 case 1:
                 case 2:

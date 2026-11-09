@@ -84,11 +84,15 @@ if(TESSERACT_VISUALIZATION_THREEJS_BUILD_SERVER)
   target_compile_options(tesseract_visualization_threejs_plugin PRIVATE $<$<CXX_COMPILER_ID:GNU,Clang>:-Wall -Wextra>)
   target_link_libraries(tesseract_visualization_threejs_plugin PRIVATE tesseract_visualization_threejs_server)
 
-  add_executable(tesseract_visualization_threejs_demo examples/viewer_demo.cpp)
-  target_link_libraries(tesseract_visualization_threejs_demo PRIVATE tesseract_visualization_threejs_server)
+  set(TESSERACT_VISUALIZATION_THREEJS_EXAMPLES)
+  foreach(example IN ITEMS viewer_demo shapes_viewer material_mesh_viewer abb_irb2400_viewer)
+    add_executable(tesseract_visualization_threejs_${example} examples/${example}.cpp)
+    target_link_libraries(tesseract_visualization_threejs_${example} PRIVATE tesseract_visualization_threejs_server)
+    list(APPEND TESSERACT_VISUALIZATION_THREEJS_EXAMPLES tesseract_visualization_threejs_${example})
+  endforeach()
 
   list(APPEND TESSERACT_VISUALIZATION_THREEJS_TARGETS tesseract_visualization_threejs_server tesseract_visualization_threejs_plugin
-       tesseract_visualization_threejs_demo)
+       ${TESSERACT_VISUALIZATION_THREEJS_EXAMPLES})
 endif()
 
 configure_package(NAMESPACE tesseract TARGETS ${TESSERACT_VISUALIZATION_THREEJS_TARGETS}

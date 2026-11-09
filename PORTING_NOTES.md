@@ -32,6 +32,9 @@ If the real Gazebo plugin is also in the plugin list, library search order decid
 
 - three.js and robust-websocket are served from `vendor/` and compiled in, so the viewer needs no internet access. Only the optional WebXR controller models are still fetched from a CDN, when a headset is used.
 - `addConesMarker` is renamed `addConeMarker`, the name `setMarkers` calls. Before this, a cone threw and dropped every marker after it.
+- Animation bindings are cleared on every scene reload. They were cleared only for scenes with embedded animations, so after a reload a trajectory kept driving the deleted nodes and the robot stopped moving.
+- A trajectory that names a joint missing from the scene skips that joint. It threw before, which happened when a trajectory arrived just ahead of its scene.
+- The WebXR availability check is caught when it throws. In an iframe without `xr-spatial-tracking` permission it threw and stopped the scene from loading.
 - The scene, trajectory and marker timers in `createScene` and `updateScene` are stored on `this`. They were stored on `self`, the window, so they could not be cleared.
 
 Triangle mesh normals are still written to the buffer but not referenced, as in the Python viewer, which has that reference commented out.

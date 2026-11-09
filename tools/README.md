@@ -19,6 +19,6 @@ tools/test_sanitizers.sh # the C++ tests under ASan, UBSan and TSan
 tools/run.sh bash       # a shell in the image
 
 # Serve a robot on http://localhost:8000
-tools/run.sh bash -c 'LD_LIBRARY_PATH=/ws/build/install/lib /ws/build/install/bin/tesseract_visualization_threejs_demo \
+tools/run.sh bash -c 'LD_LIBRARY_PATH=/ws/build/install/lib /ws/build/install/bin/tesseract_visualization_threejs_viewer_demo \
   /ws/src/tesseract/support/urdf/abb_irb2400.urdf /ws/src/tesseract/support/urdf/abb_irb2400.srdf'
 ```

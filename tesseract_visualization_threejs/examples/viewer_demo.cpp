@@ -1,5 +1,5 @@
 // Serves a robot, a trajectory and markers. Open http://localhost:8000 in a browser.
-// usage: tesseract_visualization_threejs_demo <urdf path> <srdf path> [host] [port]
+// usage: tesseract_visualization_threejs_viewer_demo <urdf path> <srdf path> [host] [port]
 // TESSERACT_RESOURCE_PATH must let package:// URLs in the URDF resolve.
 
 #include <cmath>
@@ -16,7 +16,7 @@ int main(int argc, char** argv)
 {
   if (argc < 3)
   {
-    std::cerr << "usage: tesseract_visualization_threejs_demo <urdf path> <srdf path> [host] [port]\n";
+    std::cerr << "usage: tesseract_visualization_threejs_viewer_demo <urdf path> <srdf path> [host] [port]\n";
     return 2;
   }
 
