@@ -51,7 +51,7 @@ async function exposeViewer(page) {
 }
 
 /** @brief Opens the client and records anything that went wrong */
-async function openViewer(page) {
+async function openViewer(page, { withoutWebsocket = false } = {}) {
   const problems = { pageErrors: [], badResponses: [], log: [], externalRequests: [] };
   page.on('pageerror', e => problems.pageErrors.push(String(e)));
   page.on('console', m => problems.log.push(m.text()));
@@ -64,6 +64,9 @@ async function openViewer(page) {
   await blockExternalRequests(page, problems);
 
   await exposeViewer(page);
+  // Accepted but never connected to the server, so no update message can reach the client
+  if (withoutWebsocket) await page.routeWebSocket(/\/websocket$/, () => {});
+
   await page.goto(`http://127.0.0.1:${fixture.port}/`);
   await expect.poll(() => problems.log.some(l => l.includes('WebSocket connection established'))).toBeTruthy();
   await page.waitForFunction(() => window.__viewer && window.__viewer._root_env && window.__viewer._root_env.children.length > 0);
@@ -364,6 +367,21 @@ test('the GLB document loads and matches the glTF document', async ({ page }) =>
 
   expect(summary.glb.triangles).toBeGreaterThan(1000);
   expect(summary.glb).toEqual(summary.gltf);
+  expectNoProblems(problems);
+});
+
+test('without websocket messages, the client finds changes by polling ETags', async ({ page }) => {
+  await fixture.send('env shapes');
+  const problems = await openViewer(page, { withoutWebsocket: true });
+  await exposeThree(page);
+  expect((await sceneSnapshot(page)).links.extra_link).toBeUndefined();
+
+  await fixture.send('env_keep shapes_extra');
+  await expect.poll(async () => (await sceneSnapshot(page)).links.extra_link !== undefined).toBeTruthy();
+
+  // Markers are polled about every 10 seconds
+  await fixture.send('markers');
+  await expect.poll(async () => Object.keys((await sceneSnapshot(page)).markers), { timeout: 30000 }).toContain('after_unsupported');
   expectNoProblems(problems);
 });
 
