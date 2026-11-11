@@ -35,6 +35,7 @@ set(EMBEDDED_STATIC_FILES
     vendor/robust-websocket/robust-websocket.min.js
     vendor/three/build/three.module.js
     vendor/three/examples/jsm/controls/OrbitControls.js
+    vendor/three/examples/jsm/environments/RoomEnvironment.js
     vendor/three/examples/jsm/libs/motion-controllers.module.js
     vendor/three/examples/jsm/lines/Line2.js
     vendor/three/examples/jsm/lines/LineGeometry.js

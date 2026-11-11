@@ -2,6 +2,7 @@ import * as THREE from './vendor/three/build/three.module.js';
 
 import { OrbitControls } from './vendor/three/examples/jsm/controls/OrbitControls.js';
 import { GLTFLoader } from './vendor/three/examples/jsm/loaders/GLTFLoader.js';
+import { RoomEnvironment } from './vendor/three/examples/jsm/environments/RoomEnvironment.js';
 import { VRButton } from './vendor/three/examples/jsm/webxr/VRButton.js';
 import { LineMaterial } from './vendor/three/examples/jsm/lines/LineMaterial.js'
 import { Line2 } from './vendor/three/examples/jsm/lines/Line2.js'
@@ -75,7 +76,13 @@ class TesseractViewer {
             renderer.setSize( window.innerWidth, window.innerHeight );
         }
 
-        const light = new THREE.HemisphereLight( 0xffffff, 0x202018, 1 );
+        // Image based lighting, so PBR materials show their metalness, roughness and normal maps. A
+        // hemisphere light alone leaves metals nearly black. RoomEnvironment is generated, so no image is loaded.
+        const pmrem = new THREE.PMREMGenerator( renderer );
+        this._scene.environment = pmrem.fromScene( new RoomEnvironment(), 0.04 ).texture;
+        pmrem.dispose();
+
+        const light = new THREE.HemisphereLight( 0xffffff, 0x202018, 0.5 );
         this._scene.add( light );
         this._light = light;
 

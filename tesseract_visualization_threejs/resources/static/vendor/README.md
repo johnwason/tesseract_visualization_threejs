@@ -8,3 +8,4 @@ Served by the library so that the viewer works without internet access.
 | robust-websocket | 1.0.0 | ISC, see `robust-websocket/LICENSE` | https://www.npmjs.com/package/robust-websocket |
 
 Only the modules the client imports, and their relative imports, are included.
+`examples/jsm/environments/RoomEnvironment.js` is from https://github.com/mrdoob/three.js/blob/r153/examples/jsm/environments/RoomEnvironment.js.
