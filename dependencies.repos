@@ -13,4 +13,4 @@
 - git:
     local-name: tesseract
     uri: https://github.com/johnwason/tesseract.git
-    version: 02012f6cc945f2720b4fa5a502040a0aff37aed8
+    version: d88ab1c4439dfab03de905cd7388887b63e34cf0
