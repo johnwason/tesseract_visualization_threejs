@@ -11,6 +11,7 @@
 #include <limits>
 #include <map>
 #include <memory>
+#include <optional>
 #include <stdexcept>
 #include <string>
 #include <type_traits>
@@ -458,68 +459,220 @@ private:
       flat.reserve(normals->size() * 3);
       for (const auto& n : *normals)
         flat.insert(flat.end(), { static_cast<float>(n.x()), static_cast<float>(n.y()), static_cast<float>(n.z()) });
-      appendAccessor(flat, 3);
+      if (normals->size() == vertices.size())
+        primitive["attributes"]["NORMAL"] = appendAccessor(flat, 3);
     }
 
     node["scale"] = toJsonArray(std::array<double, 3>{ 1.0, 1.0, 1.0 });
 
     const auto resource = mesh.getResource();
     if (resource != nullptr && !endsWith(toLower(resource->getUrl()), ".stl") && mesh.getMaterial() != nullptr)
-    {
-      const auto mesh_material = mesh.getMaterial();
-      material["name"] = "material_" + visual_name;
-      material["alphaMode"] = "MASK";
-      material["alphaCutoff"] = 0.4;
-
-      const Eigen::Vector4d color = mesh_material->getBaseColorFactor();
-      Json::Value& pbr = material["pbrMetallicRoughness"];
-      pbr["baseColorFactor"] = toJsonArray(std::array<double, 4>{ color[0], color[1], color[2], color[3] });
-      pbr["roughnessFactor"] = mesh_material->getRoughnessFactor();
-      pbr["metallicFactor"] = mesh_material->getMetallicFactor();
-
-      if (const auto& textures = mesh.getTextures(); textures != nullptr && !textures->empty())
-      {
-        const auto& texture = textures->front();
-        const auto image_resource = texture->getTextureImage();
-        const std::vector<std::uint8_t> image_bytes = image_resource->getResourceContents();
-
-        // From the data rather than the URL: embedded textures have no file extension
-        const bool is_png = image_bytes.size() >= 4 && image_bytes[0] == 0x89 && image_bytes[1] == 'P' &&
-                            image_bytes[2] == 'N' && image_bytes[3] == 'G';
-        const bool is_jpeg = image_bytes.size() >= 3 && image_bytes[0] == 0xFF && image_bytes[1] == 0xD8 &&
-                             image_bytes[2] == 0xFF;
-        if (!is_png && !is_jpeg)
-        {
-          TESSERACT_LOG_WARN("tesseract_visualization_threejs: texture of '{}' is not PNG or JPEG and was skipped",
-                             visual_name);
-        }
-        else
-        {
-
-          Json::Value image;
-          image["mimeType"] = is_png ? "image/png" : "image/jpeg";
-          image["bufferView"] = appendBufferView(image_bytes.data(), image_bytes.size());
-          const Json::ArrayIndex image_index = appendTo("images", std::move(image));
-
-          Json::Value gltf_texture;
-          gltf_texture["source"] = image_index;
-          pbr["baseColorTexture"]["index"] = appendTo("textures", std::move(gltf_texture));
-          pbr["baseColorTexture"]["texCoord"] = 0;
-
-          const auto& uvs = *texture->getUVs();
-          std::vector<float> flat_uvs;
-          flat_uvs.reserve(uvs.size() * 2);
-          for (const auto& uv : uvs)
-            flat_uvs.insert(flat_uvs.end(), { static_cast<float>(uv.x()), static_cast<float>(1.0 - uv.y()) });
-          primitive["attributes"]["TEXCOORD_0"] = appendAccessor(flat_uvs, 2);
-        }
-      }
-    }
+      material = meshMaterial(visual_name, mesh, primitive);
 
     Json::Value gltf_mesh;
     gltf_mesh["primitives"].append(std::move(primitive));
     gltf_mesh["name"] = visual_name + "_mesh";
     return appendTo("meshes", std::move(gltf_mesh));
+  }
+
+  /** @brief The glTF 2.0 material of a mesh loaded with its material, adding its textures and UVs to the primitive */
+  Json::Value meshMaterial(const std::string& visual_name, const tesseract::geometry::PolygonMesh& mesh, Json::Value& primitive)
+  {
+    namespace g = tesseract::geometry;
+    const auto mesh_material = mesh.getMaterial();
+
+    Json::Value material;
+    material["name"] = "material_" + visual_name;
+    switch (mesh_material->getAlphaMode())
+    {
+      case g::MeshMaterialAlphaMode::MASK:
+        material["alphaMode"] = "MASK";
+        material["alphaCutoff"] = mesh_material->getAlphaCutoff();
+        break;
+      case g::MeshMaterialAlphaMode::BLEND:
+        material["alphaMode"] = "BLEND";
+        break;
+      default:
+        material["alphaMode"] = "OPAQUE";
+        break;
+    }
+    if (mesh_material->getDoubleSided())
+      material["doubleSided"] = true;
+
+    const Eigen::Vector4d color = mesh_material->getBaseColorFactor();
+    Json::Value& pbr = material["pbrMetallicRoughness"];
+    pbr["baseColorFactor"] = toJsonArray(std::array<double, 4>{ color[0], color[1], color[2], color[3] });
+    pbr["roughnessFactor"] = mesh_material->getRoughnessFactor();
+    pbr["metallicFactor"] = mesh_material->getMetallicFactor();
+
+    const Eigen::Vector4d emissive = mesh_material->getEmissiveFactor();
+    if (emissive.head<3>().maxCoeff() > 0)
+    {
+      material["emissiveFactor"] = toJsonArray(std::array<double, 3>{ emissive[0], emissive[1], emissive[2] });
+      if (mesh_material->getEmissiveStrength() != 1.0)
+      {
+        material["extensions"]["KHR_materials_emissive_strength"]["emissiveStrength"] =
+            mesh_material->getEmissiveStrength();
+        useExtension("KHR_materials_emissive_strength");
+      }
+    }
+
+    const auto& textures = mesh.getTextures();
+    if (textures == nullptr)
+      return material;
+
+    // Each UV channel of the source mesh used by a texture becomes one TEXCOORD_n, in order of use
+    std::map<unsigned, int> tex_coords;
+    for (const auto& texture : *textures)
+    {
+      const auto& uvs = texture->getUVs();
+      if (texture->getTextureImage() == nullptr || uvs == nullptr || uvs->size() != mesh.getVertices()->size())
+        continue;
+
+      const auto texture_index = appendTexture(visual_name, *texture);
+      if (!texture_index)
+        continue;
+
+      auto tex_coord = tex_coords.find(texture->getUVChannel());
+      if (tex_coord == tex_coords.end())
+      {
+        const int n = static_cast<int>(tex_coords.size());
+        std::vector<float> flat_uvs;
+        flat_uvs.reserve(uvs->size() * 2);
+        // glTF puts the UV origin at the top left of the image and assimp at the bottom left
+        for (const auto& uv : *uvs)
+          flat_uvs.insert(flat_uvs.end(), { static_cast<float>(uv.x()), static_cast<float>(1.0 - uv.y()) });
+        primitive["attributes"]["TEXCOORD_" + std::to_string(n)] = appendAccessor(flat_uvs, 2);
+        tex_coord = tex_coords.emplace(texture->getUVChannel(), n).first;
+      }
+
+      Json::Value info;
+      info["index"] = *texture_index;
+      info["texCoord"] = tex_coord->second;
+      switch (texture->getType())
+      {
+        case g::MeshTextureType::BASE_COLOR:
+          pbr["baseColorTexture"] = info;
+          break;
+        case g::MeshTextureType::METALLIC_ROUGHNESS:
+          pbr["metallicRoughnessTexture"] = info;
+          break;
+        case g::MeshTextureType::NORMAL:
+          info["scale"] = mesh_material->getNormalScale();
+          material["normalTexture"] = info;
+          break;
+        case g::MeshTextureType::OCCLUSION:
+          info["strength"] = mesh_material->getOcclusionStrength();
+          material["occlusionTexture"] = info;
+          break;
+        case g::MeshTextureType::EMISSIVE:
+          material["emissiveTexture"] = info;
+          // A glTF emissive texture is multiplied by the factor, which defaults to black
+          if (!material.isMember("emissiveFactor"))
+            material["emissiveFactor"] = toJsonArray(std::array<double, 3>{ 1.0, 1.0, 1.0 });
+          break;
+      }
+    }
+    return material;
+  }
+
+  /** @brief The index of the glTF texture for a mesh texture, or nothing if its image is not PNG or JPEG */
+  std::optional<Json::ArrayIndex> appendTexture(const std::string& visual_name, const tesseract::geometry::MeshTexture& texture)
+  {
+    const auto image_resource = texture.getTextureImage();
+    std::optional<Json::ArrayIndex> image_index;
+    if (auto it = image_indices_.find(image_resource.get()); it != image_indices_.end())
+    {
+      image_index = it->second;
+    }
+    else
+    {
+      const std::vector<std::uint8_t> image_bytes = image_resource->getResourceContents();
+
+      // From the data rather than the URL: embedded textures may have no file extension
+      const bool is_png = image_bytes.size() >= 4 && image_bytes[0] == 0x89 && image_bytes[1] == 'P' &&
+                          image_bytes[2] == 'N' && image_bytes[3] == 'G';
+      const bool is_jpeg = image_bytes.size() >= 3 && image_bytes[0] == 0xFF && image_bytes[1] == 0xD8 &&
+                           image_bytes[2] == 0xFF;
+      if (!is_png && !is_jpeg)
+      {
+        TESSERACT_LOG_WARN("tesseract_visualization_threejs: texture of '{}' is not PNG or JPEG and was skipped",
+                           visual_name);
+      }
+      else
+      {
+        Json::Value image;
+        image["mimeType"] = is_png ? "image/png" : "image/jpeg";
+        image["bufferView"] = appendBufferView(image_bytes.data(), image_bytes.size());
+        image_index = appendTo("images", std::move(image));
+      }
+      // Remember failures too, so a bad image is read and reported once
+      image_indices_.emplace(image_resource.get(), image_index);
+      held_images_.push_back(image_resource);
+    }
+    if (!image_index)
+      return std::nullopt;
+
+    const Json::ArrayIndex sampler = appendSampler(texture);
+    const auto key = std::make_pair(*image_index, sampler);
+    if (auto it = texture_indices_.find(key); it != texture_indices_.end())
+      return it->second;
+
+    Json::Value gltf_texture;
+    gltf_texture["source"] = *image_index;
+    gltf_texture["sampler"] = sampler;
+    const Json::ArrayIndex index = appendTo("textures", std::move(gltf_texture));
+    texture_indices_.emplace(key, index);
+    return index;
+  }
+
+  /** @brief The index of a glTF sampler with the texture's wrap modes and filters, shared by equal samplers */
+  Json::ArrayIndex appendSampler(const tesseract::geometry::MeshTexture& texture)
+  {
+    namespace g = tesseract::geometry;
+    static constexpr int GL_REPEAT = 10497;
+    static constexpr int GL_CLAMP_TO_EDGE = 33071;
+    static constexpr int GL_MIRRORED_REPEAT = 33648;
+    static constexpr std::array<int, 7> GL_FILTERS = { 0, 9728, 9729, 9984, 9985, 9986, 9987 };
+
+    const auto wrap = [](g::MeshTextureWrapMode mode) {
+      switch (mode)
+      {
+        case g::MeshTextureWrapMode::CLAMP_TO_EDGE:
+          return GL_CLAMP_TO_EDGE;
+        case g::MeshTextureWrapMode::MIRRORED_REPEAT:
+          return GL_MIRRORED_REPEAT;
+        default:
+          return GL_REPEAT;
+      }
+    };
+
+    const std::array<int, 4> key = { wrap(texture.getWrapU()),
+                                     wrap(texture.getWrapV()),
+                                     GL_FILTERS.at(static_cast<std::size_t>(texture.getMagFilter())),
+                                     GL_FILTERS.at(static_cast<std::size_t>(texture.getMinFilter())) };
+    if (auto it = sampler_indices_.find(key); it != sampler_indices_.end())
+      return it->second;
+
+    Json::Value sampler;
+    sampler["wrapS"] = key[0];
+    sampler["wrapT"] = key[1];
+    if (key[2] != 0)
+      sampler["magFilter"] = key[2];
+    if (key[3] != 0)
+      sampler["minFilter"] = key[3];
+    const Json::ArrayIndex index = appendTo("samplers", std::move(sampler));
+    sampler_indices_.emplace(key, index);
+    return index;
+  }
+
+  void useExtension(const std::string& name)
+  {
+    Json::Value& used = root_["extensionsUsed"];
+    for (const auto& existing : used)
+      if (existing.asString() == name)
+        return;
+    used.append(name);
   }
 
   Json::ArrayIndex appendShapeMesh(const std::string& shape_name, const std::string& visual_name)
@@ -573,6 +726,11 @@ private:
   std::vector<std::shared_ptr<const tesseract::scene_graph::Joint>> joints_;
   std::unordered_map<std::string, JointNode> joint_nodes_;
   std::map<std::string, ShapeAccessors> shape_accessors_;
+  // Images, textures and samplers already in the file, so meshes and texture slots that share them share one copy
+  std::map<const tesseract::common::Resource*, std::optional<Json::ArrayIndex>> image_indices_;
+  std::vector<std::shared_ptr<const tesseract::common::Resource>> held_images_;  // keeps image_indices_ keys alive
+  std::map<std::pair<Json::ArrayIndex, Json::ArrayIndex>, Json::ArrayIndex> texture_indices_;
+  std::map<std::array<int, 4>, Json::ArrayIndex> sampler_indices_;
 };
 
 std::string finishGltf(GltfBuilder& builder)

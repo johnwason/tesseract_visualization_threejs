@@ -37,7 +37,7 @@ If the real Gazebo plugin is also in the plugin list, library search order decid
 - The WebXR availability check is caught when it throws. In an iframe without `xr-spatial-tracking` permission it threw and stopped the scene from loading.
 - The scene, trajectory and marker timers in `createScene` and `updateScene` are stored on `this`. They were stored on `self`, the window, so they could not be cleared.
 
-Triangle mesh normals are still written to the buffer but not referenced, as in the Python viewer, which has that reference commented out.
+Triangle mesh normals are referenced by the primitive (`NORMAL`). The Python viewer had that reference commented out; tesseract used to add node translations to mesh normals, which tesseract now fixes, so the normals can be used.
 
 ## Deliberate differences from the Python viewer
 

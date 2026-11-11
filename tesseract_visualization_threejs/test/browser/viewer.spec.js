@@ -265,6 +265,69 @@ test('textured meshes arrive with decoded images', async ({ page }) => {
   expectNoProblems(problems);
 });
 
+test('PBR materials reach three.js with every texture slot', async ({ page }) => {
+  await fixture.send('env pbr');
+  const problems = await openViewer(page);
+  await exposeThree(page);
+
+  const materials = async () => page.evaluate(() => {
+    const out = [];
+    window.__viewer._root_env.traverse(object => {
+      if (!object.isMesh || (object.userData || {}).tesseract_marker) return;
+      const m = object.material;
+      const map = t => (t ? { channel: t.channel, colorSpace: t.colorSpace, wrapS: t.wrapS, wrapT: t.wrapT,
+                              magFilter: t.magFilter, loaded: !!(t.image && t.image.width > 0) } : null);
+      out.push({
+        name: object.name, transparent: m.transparent, depthWrite: m.depthWrite, side: m.side, alphaTest: m.alphaTest,
+        opacity: m.opacity, metalness: m.metalness, roughness: m.roughness, emissive: m.emissive.toArray(),
+        emissiveIntensity: m.emissiveIntensity, normalScale: m.normalScale ? m.normalScale.toArray() : null,
+        aoMapIntensity: m.aoMapIntensity, map: map(m.map), metalnessMap: map(m.metalnessMap),
+        roughnessMap: map(m.roughnessMap), normalMap: map(m.normalMap), aoMap: map(m.aoMap), emissiveMap: map(m.emissiveMap),
+        normals: !!object.geometry.attributes.normal, uv: !!object.geometry.attributes.uv, uv2: !!object.geometry.attributes.uv1 || !!object.geometry.attributes.uv2,
+      });
+    });
+    return out;
+  });
+
+  await expect.poll(async () => (await materials()).some(m => m.normalMap && m.normalMap.loaded && m.aoMap && m.aoMap.loaded)).toBe(true);
+  const all = await materials();
+  const full = all.find(m => m.normalMap);
+  const mask = all.find(m => !m.normalMap && m.alphaTest > 0);
+  expect(mask).toBeTruthy();
+
+  const THREE = await page.evaluate(() => ({ DoubleSide: window.__three.DoubleSide,
+    SRGB: window.__three.SRGBColorSpace, Clamp: window.__three.ClampToEdgeWrapping, Mirror: window.__three.MirroredRepeatWrapping,
+    Nearest: window.__three.NearestFilter }));
+  expect(full.transparent).toBe(true);
+  expect(full.depthWrite).toBe(false);
+  expect(full.side).toBe(THREE.DoubleSide);
+  expect(full.opacity).toBeCloseTo(0.6, 5);
+  expect(full.metalness).toBeCloseTo(0.75, 5);
+  expect(full.roughness).toBeCloseTo(0.25, 5);
+  expect(full.emissiveIntensity).toBeCloseTo(2.5, 5);
+  expect(Math.abs(full.normalScale[0])).toBeCloseTo(0.5, 5);
+  expect(full.aoMapIntensity).toBeCloseTo(0.8, 5);
+  expect(full.normals).toBe(true);
+  expect(full.uv && full.uv2).toBe(true);
+  for (const slot of ['map', 'metalnessMap', 'roughnessMap', 'normalMap', 'aoMap', 'emissiveMap'])
+    expect(full[slot] && full[slot].loaded, slot).toBe(true);
+  expect(full.map.colorSpace).toBe(THREE.SRGB);
+  expect(full.emissiveMap.colorSpace).toBe(THREE.SRGB);
+  expect(full.normalMap.colorSpace).not.toBe(THREE.SRGB);
+  expect(full.map.channel).toBe(0);
+  expect(full.aoMap.channel).toBe(1);
+  expect(full.map.wrapS).toBe(THREE.Clamp);
+  expect(full.map.wrapT).toBe(THREE.Mirror);
+  expect(full.map.magFilter).toBe(THREE.Nearest);
+
+  expect(mask.alphaTest).toBeCloseTo(0.3, 5);
+  expect(mask.transparent).toBe(false);
+  // The client renders every material double sided, so meshes with inconsistent winding stay visible
+  expect(mask.side).toBe(THREE.DoubleSide);
+  await shot(page, 'pbr');
+  expectNoProblems(problems);
+});
+
 test('every tesseract marker type reaches the scene correctly', async ({ page }) => {
   const env = await fixture.send('env shapes');
   const problems = await openViewer(page);
