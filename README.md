@@ -88,8 +88,16 @@ Run these after sourcing the workspace, with `TESSERACT_RESOURCE_PATH` set so th
 | `tesseract_visualization_threejs_material_mesh_viewer` | Textured glTF and Collada meshes |
 | `tesseract_visualization_threejs_abb_irb2400_viewer` | A robot, an animated trajectory, and the tool path with axes |
 | `tesseract_visualization_threejs_viewer_demo <urdf> <srdf> [host] [port]` | Any robot, with a sweep of its joints and two markers |
+| `tesseract_visualization_threejs_pbr_models_viewer <models dir>` | glTF sample models using every PBR texture slot, and alpha, emissive and normal map test boards. See below |
 
 Add `?lighting=environment` to the viewer URL, for example `http://127.0.0.1:8000/?lighting=environment`, to light the scene with an environment map as well as the hemisphere light. Metallic and rough PBR materials, and normal maps, then look as intended. The default is the hemisphere light alone, which gives CAD meshes more contrast.
+
+The PBR models example needs models from the Khronos [glTF-Sample-Assets](https://github.com/KhronosGroup/glTF-Sample-Assets), which are not part of this repository. [examples/download_pbr_models.py](tesseract_visualization_threejs/examples/download_pbr_models.py) downloads them at a pinned commit, using only the Python standard library, and writes the scene URDF and an `ATTRIBUTION.md` with each model's license (CC0 or CC-BY). `--include-noncommercial` adds DamagedHelmet, which is partly CC-BY-NC.
+
+```bash
+python3 tesseract_visualization_threejs/examples/download_pbr_models.py pbr_models
+tesseract_visualization_threejs_pbr_models_viewer pbr_models   # then open the URL it prints
+```
 
 Two pages in [examples/javascript](tesseract_visualization_threejs/examples/javascript) embed the viewer in an iframe and control it with `postMessage`: `iframe_joint_positions.html` and `iframe_trajectory.html`. Start the ABB example, then open either page.
 

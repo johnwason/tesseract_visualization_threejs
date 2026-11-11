@@ -86,7 +86,7 @@ if(TESSERACT_VISUALIZATION_THREEJS_BUILD_SERVER)
   target_link_libraries(tesseract_visualization_threejs_plugin PRIVATE tesseract_visualization_threejs_server)
 
   set(TESSERACT_VISUALIZATION_THREEJS_EXAMPLES)
-  foreach(example IN ITEMS viewer_demo shapes_viewer material_mesh_viewer abb_irb2400_viewer)
+  foreach(example IN ITEMS viewer_demo shapes_viewer material_mesh_viewer abb_irb2400_viewer pbr_models_viewer)
     add_executable(tesseract_visualization_threejs_${example} examples/${example}.cpp)
     target_link_libraries(tesseract_visualization_threejs_${example} PRIVATE tesseract_visualization_threejs_server)
     list(APPEND TESSERACT_VISUALIZATION_THREEJS_EXAMPLES tesseract_visualization_threejs_${example})
