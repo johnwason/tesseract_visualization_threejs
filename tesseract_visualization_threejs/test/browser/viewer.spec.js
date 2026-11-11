@@ -51,7 +51,7 @@ async function exposeViewer(page) {
 }
 
 /** @brief Opens the client and records anything that went wrong */
-async function openViewer(page, { withoutWebsocket = false } = {}) {
+async function openViewer(page, { withoutWebsocket = false, query = '' } = {}) {
   const problems = { pageErrors: [], badResponses: [], log: [], externalRequests: [] };
   page.on('pageerror', e => problems.pageErrors.push(String(e)));
   page.on('console', m => problems.log.push(m.text()));
@@ -67,7 +67,7 @@ async function openViewer(page, { withoutWebsocket = false } = {}) {
   // Accepted but never connected to the server, so no update message can reach the client
   if (withoutWebsocket) await page.routeWebSocket(/\/websocket$/, () => {});
 
-  await page.goto(`http://127.0.0.1:${fixture.port}/`);
+  await page.goto(`http://127.0.0.1:${fixture.port}/${query}`);
   await expect.poll(() => problems.log.some(l => l.includes('WebSocket connection established'))).toBeTruthy();
   await page.waitForFunction(() => window.__viewer && window.__viewer._root_env && window.__viewer._root_env.children.length > 0);
   return problems;
@@ -325,6 +325,25 @@ test('PBR materials reach three.js with every texture slot', async ({ page }) =>
   // The client renders every material double sided, so meshes with inconsistent winding stay visible
   expect(mask.side).toBe(THREE.DoubleSide);
   await shot(page, 'pbr');
+  expectNoProblems(problems);
+});
+
+async function lighting(page) {
+  return page.evaluate(() => ({ environment: !!window.__viewer._scene.environment, hemisphere: window.__viewer._light.intensity }));
+}
+
+test('the default lighting is the hemisphere light alone', async ({ page }) => {
+  await fixture.send('env pbr');
+  const problems = await openViewer(page);
+  expect(await lighting(page)).toEqual({ environment: false, hemisphere: 1 });
+  expectNoProblems(problems);
+});
+
+test('?lighting=environment adds image based lighting', async ({ page }) => {
+  await fixture.send('env pbr');
+  const problems = await openViewer(page, { query: '?lighting=environment' });
+  expect(await lighting(page)).toEqual({ environment: true, hemisphere: 0.5 });
+  await shot(page, 'pbr_environment');
   expectNoProblems(problems);
 });
 

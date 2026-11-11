@@ -76,13 +76,18 @@ class TesseractViewer {
             renderer.setSize( window.innerWidth, window.innerHeight );
         }
 
-        // Image based lighting, so PBR materials show their metalness, roughness and normal maps. A
-        // hemisphere light alone leaves metals nearly black. RoomEnvironment is generated, so no image is loaded.
-        const pmrem = new THREE.PMREMGenerator( renderer );
-        this._scene.environment = pmrem.fromScene( new RoomEnvironment(), 0.04 ).texture;
-        pmrem.dispose();
+        // ?lighting=environment adds image based lighting, so PBR materials show their metalness, roughness and
+        // normal maps; a hemisphere light alone leaves metals nearly black. The default is the hemisphere light
+        // only, which gives CAD meshes more contrast. RoomEnvironment is generated, so no image is loaded.
+        const environment_lighting = new URLSearchParams( window.location.search ).get( 'lighting' ) === 'environment';
+        if ( environment_lighting )
+        {
+            const pmrem = new THREE.PMREMGenerator( renderer );
+            this._scene.environment = pmrem.fromScene( new RoomEnvironment(), 0.04 ).texture;
+            pmrem.dispose();
+        }
 
-        const light = new THREE.HemisphereLight( 0xffffff, 0x202018, 0.5 );
+        const light = new THREE.HemisphereLight( 0xffffff, 0x202018, environment_lighting ? 0.5 : 1 );
         this._scene.add( light );
         this._light = light;
 

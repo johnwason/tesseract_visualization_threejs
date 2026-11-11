@@ -89,6 +89,8 @@ Run these after sourcing the workspace, with `TESSERACT_RESOURCE_PATH` set so th
 | `tesseract_visualization_threejs_abb_irb2400_viewer` | A robot, an animated trajectory, and the tool path with axes |
 | `tesseract_visualization_threejs_viewer_demo <urdf> <srdf> [host] [port]` | Any robot, with a sweep of its joints and two markers |
 
+Add `?lighting=environment` to the viewer URL, for example `http://127.0.0.1:8000/?lighting=environment`, to light the scene with an environment map as well as the hemisphere light. Metallic and rough PBR materials, and normal maps, then look as intended. The default is the hemisphere light alone, which gives CAD meshes more contrast.
+
 Two pages in [examples/javascript](tesseract_visualization_threejs/examples/javascript) embed the viewer in an iframe and control it with `postMessage`: `iframe_joint_positions.html` and `iframe_trajectory.html`. Start the ABB example, then open either page.
 
 The Python ABB example plans with OMPL and TrajOpt. The C++ version interpolates joint positions instead, so that this project doesn't depend on `tesseract_planning`. The Python HTTPS WebXR example has no C++ version, because the server doesn't support TLS yet.
