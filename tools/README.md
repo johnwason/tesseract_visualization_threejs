@@ -4,7 +4,7 @@
 
 | Checkout | Version | Used for |
 | --- | --- | --- |
-| `src/tesseract` | `d88ab1c4` (`johnwason/tesseract`, `dev/pbr-materials-with-viz-factory`) | built |
+| `src/tesseract` | `b71a3ad6` (master) | built |
 | `src/ros_industrial_cmake_boilerplate` | `0.7.4` | built |
 | `src/boost_plugin_loader` | `0.4.5` | built |
 | `src/opw_kinematics` | `0.5.5` | built |

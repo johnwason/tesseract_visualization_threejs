@@ -6,8 +6,6 @@ It's a C++ port of `tesseract_viewer_python` from [tesseract_python](https://git
 
 CI builds and tests it on Ubuntu 24.04 (x64 and arm64), macOS (x64 and arm64) and Windows x64.
 
-> **Temporary dependency:** the plugin needs `VisualizationFactory`, which is proposed in [tesseract#1399](https://github.com/tesseract-robotics/tesseract/pull/1399). Until that merges, `dependencies.repos` pins a commit on `johnwason/tesseract`.
-
 ## Build
 
 The build uses [colcon](https://colcon.readthedocs.io), as Tesseract does. On Ubuntu, with `vcstool` and `rosdep` installed:
