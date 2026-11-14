@@ -12,5 +12,5 @@
     version: 0.5.5
 - git:
     local-name: tesseract
-    uri: https://github.com/johnwason/tesseract.git
-    version: 337308dca24cca57c234b14fa0c226d53def439c
+    uri: https://github.com/tesseract-robotics/tesseract.git
+    version: b71a3ad6008aa7fc6d3403217c319d43d222f22c

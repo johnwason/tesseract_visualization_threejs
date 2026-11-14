@@ -26,7 +26,7 @@ export TESSERACT_VISUALIZATION_THREEJS_HOST=127.0.0.1 TESSERACT_VISUALIZATION_TH
 
 The factory symbol is `TesseractThreejsVisualizationPlugin`. Each `VisualizationLoader` owns one instance, so one server and scene; another loader, or another `ThreejsVisualization` object, is independent of it. `get()` accepts optional YAML with `host` and `port`. With no port set, each instance takes the first free port from 8000 and logs its URL.
 
-If the real Gazebo plugin is also in the plugin list, library search order decides which one the Ignition symbol loads. This plugin needs tesseract with `VisualizationFactory`; `dependencies.repos` points at that branch on `johnwason/tesseract` until it merges. The class is also exported under the Ignition symbol, so existing `VisualizationLoader::get()` callers get the viewer without code changes. For wheels, link the plugin through `ThreejsVisualizationAnchor` in `threejs_visualization_anchor.h`.
+If the real Gazebo plugin is also in the plugin list, library search order decides which one the Ignition symbol loads. This plugin needs tesseract with `VisualizationFactory`, which is on tesseract master from `e5c79c0c` on. The class is also exported under the Ignition symbol, so existing `VisualizationLoader::get()` callers get the viewer without code changes. For wheels, link the plugin through `ThreejsVisualizationAnchor` in `threejs_visualization_anchor.h`.
 
 ## Changes to the client
 
@@ -37,7 +37,7 @@ If the real Gazebo plugin is also in the plugin list, library search order decid
 - The WebXR availability check is caught when it throws. In an iframe without `xr-spatial-tracking` permission it threw and stopped the scene from loading.
 - The scene, trajectory and marker timers in `createScene` and `updateScene` are stored on `this`. They were stored on `self`, the window, so they could not be cleared.
 
-Triangle mesh normals are still written to the buffer but not referenced, as in the Python viewer, which has that reference commented out.
+Triangle mesh normals are referenced by the primitive (`NORMAL`). The Python viewer had that reference commented out; tesseract used to add node translations to mesh normals, which tesseract now fixes, so the normals can be used.
 
 ## Deliberate differences from the Python viewer
 

@@ -346,8 +346,16 @@ TEST(Gltf, TriangleMeshes)
   for (const auto& mesh : glb.json["meshes"])
   {
     const Json::Value& primitive = mesh["primitives"][0];
-    EXPECT_FALSE(primitive["attributes"].isMember("NORMAL"));
+    // Mesh normals are referenced, and tesseract gives unit normals with one per vertex
+    ASSERT_TRUE(primitive["attributes"].isMember("NORMAL"));
     const int positions = primitive["attributes"]["POSITION"].asInt();
+    const Json::Value& normals = glb.json["accessors"][primitive["attributes"]["NORMAL"].asInt()];
+    EXPECT_EQ(normals["count"].asUInt(), glb.json["accessors"][positions]["count"].asUInt());
+    for (Json::ArrayIndex c = 0; c < 3; ++c)
+    {
+      EXPECT_LE(normals["max"][c].asDouble(), 1.0 + 1e-5);
+      EXPECT_GE(normals["min"][c].asDouble(), -1.0 - 1e-5);
+    }
     const int indices = primitive["indices"].asInt();
     EXPECT_EQ(glb.json["accessors"][indices]["count"].asUInt() % 3, 0u);
     EXPECT_LT(glb.json["accessors"][indices]["max"][0].asUInt(), glb.json["accessors"][positions]["count"].asUInt());
@@ -397,6 +405,91 @@ TEST(Gltf, EmbeddedTextures)
     EXPECT_LT(pbr["baseColorTexture"]["index"].asUInt(), glb.json["textures"].size());
   }
   EXPECT_TRUE(has_textured_primitive);
+}
+
+TEST(Gltf, PbrMaterialsAndTextureSlots)
+{
+  constexpr char URDF[] = R"(
+  <robot name="pbr_viewer" tesseract:make_convex="false" xmlns:tesseract="http://tesseract">
+    <link name="world"/>
+    <link name="mesh_link">
+      <visual><geometry>
+        <mesh filename="package://tesseract/support/meshes/tesseract_pbr_mesh.glb"/>
+      </geometry></visual>
+    </link>
+    <joint name="mesh_joint" type="fixed"><parent link="world"/><child link="mesh_link"/></joint>
+  </robot>)";
+  Environment env;
+  ASSERT_TRUE(env.init(std::string(URDF), std::make_shared<GeneralResourceLocator>()));
+  // glTF factors pass through float in assimp
+  const auto expectNear = [](const Json::Value& actual, const std::vector<double>& expected) {
+    ASSERT_EQ(actual.size(), expected.size());
+    for (Json::ArrayIndex i = 0; i < actual.size(); ++i)
+      EXPECT_NEAR(actual[i].asDouble(), expected[i], 1e-6);
+  };
+
+  const Glb glb = decodeGlb(environmentToGlb(env));
+  checkAccessors(glb);
+
+  // Five distinct images; metallic-roughness and normal etc. are not duplicated across slots
+  EXPECT_EQ(glb.json["images"].size(), 5u);
+  bool has_emissive_strength = false;
+  for (const auto& name : glb.json["extensionsUsed"])
+    has_emissive_strength |= name.asString() == "KHR_materials_emissive_strength";
+  EXPECT_TRUE(has_emissive_strength);
+
+  const Json::Value* full = nullptr;
+  const Json::Value* full_primitive = nullptr;
+  const Json::Value* mask = nullptr;
+  for (const auto& mesh : glb.json["meshes"])
+  {
+    const Json::Value& primitive = mesh["primitives"][0];
+    const Json::Value& material = glb.json["materials"][primitive["material"].asInt()];
+    if (material.isMember("normalTexture"))
+    {
+      full = &material;
+      full_primitive = &primitive;
+    }
+    else if (material["alphaMode"].asString() == "MASK")
+    {
+      mask = &material;
+    }
+    // Normals from the mesh file are attached to the primitive
+    EXPECT_TRUE(primitive["attributes"].isMember("NORMAL"));
+  }
+  ASSERT_NE(full, nullptr);
+  ASSERT_NE(mask, nullptr);
+
+  EXPECT_EQ((*full)["alphaMode"].asString(), "BLEND");
+  EXPECT_TRUE((*full)["doubleSided"].asBool());
+  expectNear((*full)["pbrMetallicRoughness"]["baseColorFactor"], { 0.9, 0.8, 0.7, 0.6 });
+  EXPECT_NEAR((*full)["pbrMetallicRoughness"]["metallicFactor"].asDouble(), 0.75, 1e-6);
+  EXPECT_NEAR((*full)["pbrMetallicRoughness"]["roughnessFactor"].asDouble(), 0.25, 1e-6);
+  expectNear((*full)["emissiveFactor"], { 1.0, 0.5, 0.25 });
+  EXPECT_NEAR((*full)["extensions"]["KHR_materials_emissive_strength"]["emissiveStrength"].asDouble(), 2.5, 1e-6);
+  EXPECT_NEAR((*full)["normalTexture"]["scale"].asDouble(), 0.5, 1e-6);
+  EXPECT_NEAR((*full)["occlusionTexture"]["strength"].asDouble(), 0.8, 1e-6);
+
+  // Occlusion samples the second UV set, everything else the first
+  EXPECT_EQ((*full)["pbrMetallicRoughness"]["baseColorTexture"]["texCoord"].asInt(), 0);
+  EXPECT_EQ((*full)["pbrMetallicRoughness"]["metallicRoughnessTexture"]["texCoord"].asInt(), 0);
+  EXPECT_EQ((*full)["normalTexture"]["texCoord"].asInt(), 0);
+  EXPECT_EQ((*full)["emissiveTexture"]["texCoord"].asInt(), 0);
+  EXPECT_EQ((*full)["occlusionTexture"]["texCoord"].asInt(), 1);
+  EXPECT_TRUE((*full_primitive)["attributes"].isMember("TEXCOORD_0"));
+  EXPECT_TRUE((*full_primitive)["attributes"].isMember("TEXCOORD_1"));
+
+  // The base color sampler is clamp / mirrored repeat with nearest filtering
+  const Json::Value& base_texture =
+      glb.json["textures"][(*full)["pbrMetallicRoughness"]["baseColorTexture"]["index"].asInt()];
+  const Json::Value& sampler = glb.json["samplers"][base_texture["sampler"].asInt()];
+  EXPECT_EQ(sampler["wrapS"].asInt(), 33071);
+  EXPECT_EQ(sampler["wrapT"].asInt(), 33648);
+  EXPECT_EQ(sampler["magFilter"].asInt(), 9728);
+  EXPECT_EQ(sampler["minFilter"].asInt(), 9728);
+
+  EXPECT_NEAR((*mask)["alphaCutoff"].asDouble(), 0.3, 1e-6);
+  EXPECT_FALSE(mask->isMember("doubleSided"));
 }
 
 TEST(Gltf, UnsupportedGeometryIsSkippedAndKeepsNumbering)

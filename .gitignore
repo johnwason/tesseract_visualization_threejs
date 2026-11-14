@@ -1,3 +1,6 @@
 # Upstream checkouts (see tools/README.md) and container build output
 /src/
 /build/
+
+# Models downloaded by examples/download_pbr_models.py
+pbr_models/

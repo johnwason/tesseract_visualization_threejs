@@ -75,6 +75,15 @@ const std::string TEXTURED = R"(
 </robot>
 )";
 
+const std::string PBR = R"(
+<robot name="pbr_viewer" tesseract:make_convex="false" xmlns:tesseract="http://tesseract">
+  <link name="world"/>
+  <link name="pbr_link"><visual><geometry>
+    <mesh filename="package://tesseract/support/meshes/tesseract_pbr_mesh.glb"/></geometry></visual></link>
+  <joint name="pbr_joint" type="fixed"><parent link="world"/><child link="pbr_link"/><origin xyz="0 0 0.25" rpy="1.5708 0 0"/></joint>
+</robot>
+)";
+
 std::string readResource(const std::string& url)
 {
   GeneralResourceLocator locator;
@@ -96,6 +105,8 @@ std::shared_ptr<Environment> loadEnvironment(const std::string& name)
     ok = env->init(SHAPES + EXTRA_LINK + "</robot>", locator);
   else if (name == "textured")
     ok = env->init(TEXTURED, locator);
+  else if (name == "pbr")
+    ok = env->init(PBR, locator);
   else if (name == "abb")
     ok = env->init(readResource("package://tesseract/support/urdf/abb_irb2400.urdf"),
                    readResource("package://tesseract/support/urdf/abb_irb2400.srdf"),
